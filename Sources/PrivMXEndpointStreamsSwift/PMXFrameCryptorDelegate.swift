@@ -9,7 +9,6 @@
 // limitations under the License.
 //
 
-// #if Streams
 import WebRTC
 import Foundation
 
@@ -19,5 +18,3 @@ public class PMXFrameCryptorDelegate: PMXFrameCryptorObserver{
 		print("FrameCryptionState changed to ",state, state.rawValue)
 	}
 }
-
-// #endif

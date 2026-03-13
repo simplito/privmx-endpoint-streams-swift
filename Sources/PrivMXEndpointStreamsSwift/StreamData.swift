@@ -9,7 +9,6 @@
 // limitations under the License.
 //
 
-// #if Streams
 import Foundation
 import PrivMXEndpointSwiftNative
 import WebRTC
@@ -32,4 +31,4 @@ final public class StreamData:@unchecked Sendable{
 		self.trackIds = trackIds
 	}
 }
-// #endif
+

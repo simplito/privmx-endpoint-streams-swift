@@ -12,6 +12,7 @@
 //#if Streams
 import WebRTC
 import PrivMXEndpointSwiftNative
+import PrivMXEndpointSwift
 
 class RoomJanusSession{
 	init(

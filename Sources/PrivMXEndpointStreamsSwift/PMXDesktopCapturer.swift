@@ -13,6 +13,7 @@
 import WebRTC
 import ScreenCaptureKit
 import PrivMXEndpointSwiftNative
+import PrivMXEndpointSwift
 
 
 final class StreamOutput:NSObject, SCStreamOutput{

@@ -9,7 +9,6 @@
 // limitations under the License.
 //
 
-// #if Streams
 import Foundation
 import WebRTC
 import PrivMXEndpointSwiftNative
@@ -47,4 +46,4 @@ public struct VideoTrackInfo{
 	public var frameCryptor: PMXFrameCryptorTransformer
 	public var frameCryptorDelegate: PMXFrameCryptorObserver?
 }
-// #endif // Streams
+ // Streams

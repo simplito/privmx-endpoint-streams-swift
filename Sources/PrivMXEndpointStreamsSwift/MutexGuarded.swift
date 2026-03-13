@@ -9,7 +9,6 @@
 // limitations under the License.
 //
 
-// #if Streams
 import os.lock
 
 public final class MutexGuarded<T>:Sendable{
@@ -34,4 +33,4 @@ public final class MutexGuarded<T>:Sendable{
 	}
 	
 }
-// #endif
+

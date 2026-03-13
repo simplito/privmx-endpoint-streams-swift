@@ -9,6 +9,7 @@
 // limitations under the License.
 //
 
+import PrivMXEndpointSwift
 import PrivMXEndpointSwiftNative
 import WebRTC
 import Foundation

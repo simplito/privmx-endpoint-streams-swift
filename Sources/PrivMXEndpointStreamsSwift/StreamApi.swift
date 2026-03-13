@@ -9,8 +9,8 @@
 // limitations under the License.
 //
 
-// #if Streams
 import PrivMXEndpointSwiftNative
+import PrivMXEndpointSwift
 import Foundation
 import WebRTC
 #if os(macOS)
@@ -599,4 +599,4 @@ public class StreamApi: @unchecked Sendable{
 	
 }
 
-// #endif // Streams
+ // Streams
