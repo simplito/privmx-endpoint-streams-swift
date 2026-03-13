@@ -9,31 +9,29 @@
 // limitations under the License.
 //
 
+import PrivMXEndpointSwift
 import PrivMXEndpointSwiftNative
 import WebRTC
 import Foundation
 
 public final class RoomSessionManager: Sendable{
-	public func muteAudioOutFor(_ roomId:String) -> Void {
-		roomSessions[roomId]?.publisher?.audioTracks.forEach {
-			$0.value.sender.track = nil
-		}
-	}
 	
+	private let getTurnCredentials: @Sendable () throws -> [privmx.endpoint.stream.TurnCredentials]
 	nonisolated(unsafe) var onAudioTrack: ((String,RTCAudioTrack) -> Void)?
 	nonisolated(unsafe)var onVideoTrack: ((String,RTCVideoTrack) -> Void)?
 	
-	nonisolated(unsafe) var streamHandles: [privmx.endpoint.stream.StreamHandle:String] = [:]
+	nonisolated(unsafe) var roomIdsForHandles: [privmx.endpoint.stream.StreamHandle:String] = [:]
 	nonisolated(unsafe) var roomSessions: [String:RoomJanusSession] = [:]
 	
 	private let onTrickle: @Sendable (Int64,String) throws -> Void
-	public nonisolated(unsafe) let peerConnectionFactory: RTCPeerConnectionFactory
+	nonisolated(unsafe) let peerConnectionFactory: RTCPeerConnectionFactory
 	
 	private let setNewOfferOnReconfigure: @Sendable (Int64,privmx.endpoint.stream.SdpWithTypeModel) throws -> Void
 	private let acceptOfferOnReconfigure: @Sendable (Int64,privmx.endpoint.stream.SdpWithTypeModel) throws -> Void
 	
 	static func create(
 		onTrickle: @escaping @Sendable (Int64,String) throws -> Void,
+		getTurnCredentials: @escaping @Sendable () throws -> [privmx.endpoint.stream.TurnCredentials],
 		setNewOfferOnReconfigure: @escaping @Sendable (Int64,privmx.endpoint.stream.SdpWithTypeModel) throws -> Void,
 		acceptOfferOnReconfigure: @escaping @Sendable (Int64,privmx.endpoint.stream.SdpWithTypeModel) throws -> Void,
 	) -> RoomSessionManager {
@@ -43,6 +41,7 @@ public final class RoomSessionManager: Sendable{
 		
 		var mgr = RoomSessionManager(
 			onTrickle: onTrickle,
+			getTurnCredentials: getTurnCredentials,
 			peerConnectionFactory: RTCPeerConnectionFactory(
 				encoderFactory: encf,
 			 decoderFactory: RTCDefaultVideoDecoderFactory()),
@@ -51,6 +50,7 @@ public final class RoomSessionManager: Sendable{
 		)
 		return mgr
 	}
+	
 	@discardableResult
 	func addRoomSessionFor(
 		_ roomId: String
@@ -79,7 +79,7 @@ public final class RoomSessionManager: Sendable{
 				var iceCandidate = candidate.sdp
 				do{
 					RTCLogEx(.info, "[PMX] trickling publisher")
-					//try self.onTrickle(sessionId,iceCandidate)
+					try self.onTrickle(sessionId,iceCandidate)
 				}catch{
 					print("Failed to trickle candidate", error)
 				}
@@ -244,7 +244,7 @@ public final class RoomSessionManager: Sendable{
 		_ track: RTCVideoTrack,
 		from handle: privmx.endpoint.stream.StreamHandle
 	) throws -> Bool {
-		guard let rid = streamHandles[handle], let publisher = roomSessions[rid]?.publisher
+		guard let rid = roomIdsForHandles[handle], let publisher = roomSessions[rid]?.publisher
 		else {
 			throw PrivMXEndpointError.otherFailure(.init(name: "No publisher found", message: "", description: ""))
 		}
@@ -259,7 +259,7 @@ public final class RoomSessionManager: Sendable{
 		_ track: RTCAudioTrack,
 		from handle: privmx.endpoint.stream.StreamHandle
 	) throws -> Bool {
-		guard let rid = streamHandles[handle], let publisher = roomSessions[rid]?.publisher
+		guard let rid = roomIdsForHandles[handle], let publisher = roomSessions[rid]?.publisher
 		else {
 			throw PrivMXEndpointError.otherFailure(.init(name: "No publisher found", message: "", description: ""))
 		}
@@ -355,9 +355,16 @@ public final class RoomSessionManager: Sendable{
 				}
 			}
 		})
-		
+		var conf = RTCConfiguration()
+		if let turncreds = try? getTurnCredentials(){
+			conf.iceTransportPolicy = .all
+			turncreds.forEach({
+				cred in
+				conf.iceServers.append(.init(urlStrings: [String(cred.url)], username: String(cred.username), credential: String(cred.password)))
+			})
+		}
 		return (self.peerConnectionFactory.peerConnection(
-			with: RTCConfiguration(),
+			with: conf,
 			constraints: RTCMediaConstraints.init(
 				mandatoryConstraints: [:],
 				optionalConstraints: nil),
@@ -366,14 +373,39 @@ public final class RoomSessionManager: Sendable{
 	
 	private init(
 		onTrickle: @escaping @Sendable (Int64,String) throws -> Void,
+		getTurnCredentials: @escaping @Sendable () throws -> [privmx.endpoint.stream.TurnCredentials],
 		peerConnectionFactory: RTCPeerConnectionFactory,
 		onSetNewOfferOnReconfigure: @escaping @Sendable (Int64,privmx.endpoint.stream.SdpWithTypeModel) throws -> Void,
 		onAcceptOfferOnReconfigure: @escaping @Sendable (Int64,privmx.endpoint.stream.SdpWithTypeModel) throws -> Void
 	){
 		self.onTrickle = onTrickle
+		self.getTurnCredentials = getTurnCredentials
 		self.peerConnectionFactory = peerConnectionFactory
 		self.setNewOfferOnReconfigure = onSetNewOfferOnReconfigure
 		self.acceptOfferOnReconfigure = onAcceptOfferOnReconfigure
+	}
+	
+	func updateTurnCredentialsFor(
+		_ roomId:String
+	) -> Void {
+		if var session = roomSessions[roomId], let creds = try? getTurnCredentials(){
+			
+			var iceServers = [RTCIceServer]()
+			creds.forEach {
+				iceServers.append(.init(
+					urlStrings: [String($0.url)],
+					username: String($0.username),
+					credential: String($0.password)))
+			}
+			if var conf = session.subscriber?.peerConnection.configuration{
+				conf.iceServers = iceServers
+				session.subscriber?.peerConnection.setConfiguration(conf)
+			}
+			if var conf = session.publisher?.peerConnection.configuration{
+				conf.iceServers = iceServers
+				session.publisher?.peerConnection.setConfiguration(conf)
+			}
+		}
 	}
 	
 	private func setCppCallbacksInSession(

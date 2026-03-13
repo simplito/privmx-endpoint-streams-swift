@@ -9,9 +9,9 @@
 // limitations under the License.
 //
 
-// #if Streams
 import Foundation
 import PrivMXEndpointSwiftNative
+import PrivMXEndpointSwift
 import WebRTC
 
 public class JanusConnection: @unchecked Sendable{
@@ -125,4 +125,4 @@ public final class JanusSubscriber:JanusConnection, @unchecked Sendable{
 	}
 }
 
-// #endif // Streams
+ // Streams

@@ -9,7 +9,6 @@
 // limitations under the License.
 //
 
-// #if Streams
 import Foundation
 import WebRTC
 import PrivMXEndpointSwiftNative
@@ -17,21 +16,6 @@ import PrivMXEndpointSwiftNative
 public struct DataChannelMeta: Hashable{
 	var name: String
 	// TODO: fill Data Channel Metadata or remove
-}
-
-
-public struct StreamTrackInfo:Hashable,Identifiable{
-	public var id: String
-	var streamId:String? = nil
-	var streamHandle: privmx.endpoint.stream.StreamHandle
-	public var track: RTCMediaStreamTrack? = nil
-	var cameraCapturer: RTCCameraVideoCapturer? = nil
-	#if os(macOS)
-	var desktopCapturer: PMXDesktopCapturer? = nil
-	#endif
-	var dataChannelMeta: DataChannelMeta? = nil
-	var published: Bool
-	var markedToRemove: Bool? = nil
 }
 
 public struct AudioTrackInfo{
@@ -47,4 +31,3 @@ public struct VideoTrackInfo{
 	public var frameCryptor: PMXFrameCryptorTransformer
 	public var frameCryptorDelegate: PMXFrameCryptorObserver?
 }
-// #endif // Streams

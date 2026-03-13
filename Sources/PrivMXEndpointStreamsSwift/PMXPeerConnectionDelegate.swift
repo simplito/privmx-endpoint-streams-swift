@@ -9,7 +9,6 @@
 // limitations under the License.
 //
 
-// #if Streams
 import Foundation
 import WebRTC
 import PrivMXEndpointSwiftNative
@@ -355,4 +354,4 @@ final class PMXPeerConnectionDelegate:NSObject,RTCPeerConnectionDelegate, @unche
 								 reason)
 	}
 }
-// #endif // Streams
+ // Streams
