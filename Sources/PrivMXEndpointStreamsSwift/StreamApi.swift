@@ -232,8 +232,8 @@ public class StreamApi: @unchecked Sendable{
 	public func leaveStreamRoom(
 		_ roomId: String
 	) throws -> Void {
-		if let handle = roomSessionManager.streamHandles.first(where: {$0.value == roomId}){
-			roomSessionManager.streamHandles[handle.key] = nil
+		if let handle = roomSessionManager.roomIdsForHandles.first(where: {$0.value == roomId}){
+			roomSessionManager.roomIdsForHandles[handle.key] = nil
 		}
 		
 		let res = api.leaveStreamRoom(std.string(roomId))
@@ -260,13 +260,16 @@ public class StreamApi: @unchecked Sendable{
 			err.description = "Unexpectedly recived nil result"
 			throw PrivMXEndpointError.otherFailure(err)
 		}
-		roomSessionManager.streamHandles[streamHandle] = streamRoomId
+		roomSessionManager.roomIdsForHandles[streamHandle] = streamRoomId
 		return streamHandle
 	}
 	
 	public func updateStream(
 		_ handle: privmx.endpoint.stream.StreamHandle
 	) throws -> privmx.endpoint.stream.StreamPublishResult {
+		if let roomId = roomSessionManager.roomIdsForHandles[handle]{
+			roomSessionManager.updateTurnCredentialsFor(roomId)
+		}
 		let res = api.updateStream(handle)
 		if let err = res.error.value {
 			throw PrivMXEndpointError.otherFailure(err)
@@ -283,7 +286,7 @@ public class StreamApi: @unchecked Sendable{
 		_ streamHandle: privmx.endpoint.stream.StreamHandle
 	) throws -> privmx.endpoint.stream.StreamPublishResult {
 		
-		guard let sh = roomSessionManager.streamHandles[streamHandle]
+		guard let sh = roomSessionManager.roomIdsForHandles[streamHandle]
 		else {
 			throw PrivMXEndpointError.otherFailure(.init(
 				name: "Unknown stream handle",
@@ -291,6 +294,7 @@ public class StreamApi: @unchecked Sendable{
 				description: "")
 			)
 		}
+		roomSessionManager.updateTurnCredentialsFor(sh)
 		
 		guard let session = roomSessionManager.roomSessions[sh]
 		else {
@@ -333,9 +337,12 @@ public class StreamApi: @unchecked Sendable{
 	}
 	
 	public func unpublishStream(
-		localStreamId: Int64
+		streamHandle: privmx.endpoint.stream.StreamHandle
 	) throws -> Void {
-		let res = api.unpublishStream(localStreamId)
+		if let roomId = roomSessionManager.roomIdsForHandles[streamHandle]{
+			roomSessionManager.updateTurnCredentialsFor(roomId)
+		}
+		let res = api.unpublishStream(streamHandle)
 		guard res.error.value == nil else {
 			throw PrivMXEndpointError.otherFailure(res.error.value!)
 		}
@@ -346,6 +353,7 @@ public class StreamApi: @unchecked Sendable{
 		subscriptions: [privmx.endpoint.stream.StreamSubscription]
 	) throws -> Void {
 		
+		roomSessionManager.updateTurnCredentialsFor(streamRoomId)
 		var siv = privmx.StreamSubscriptiopnsVector()
 		siv.reserve(subscriptions.count)
 		for i in subscriptions{
@@ -363,6 +371,9 @@ public class StreamApi: @unchecked Sendable{
 		subscriptionsToAdd: [privmx.endpoint.stream.StreamSubscription],
 		subscriptionsToRemove: [privmx.endpoint.stream.StreamSubscription]
 	) throws -> Void{
+		
+			roomSessionManager.updateTurnCredentialsFor(streamRoomId)
+		
 		var rsiv = privmx.StreamSubscriptiopnsVector()
 		rsiv.reserve(subscriptionsToRemove.count)
 		for i in subscriptionsToRemove{
@@ -384,6 +395,7 @@ public class StreamApi: @unchecked Sendable{
 		_ subscriptionsToRemove: [privmx.endpoint.stream.StreamSubscription],
 		in streamRoomId:String
 	) throws -> Void {
+			roomSessionManager.updateTurnCredentialsFor(streamRoomId)
 		var siv = privmx.StreamSubscriptiopnsVector()
 		siv.reserve(subscriptionsToRemove.count)
 		for i in subscriptionsToRemove{
@@ -613,5 +625,3 @@ public class StreamApi: @unchecked Sendable{
 	}
 	
 }
-
- // Streams
