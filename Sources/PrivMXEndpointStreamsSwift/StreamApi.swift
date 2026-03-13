@@ -578,6 +578,21 @@ public class StreamApi: @unchecked Sendable{
 			onTrickle: { sessionId, candidate in
 				self.api.trickle(sessionId, std.string(candidate))
 			},
+			getTurnCredentials: {
+				let res = self.api.getTurnCredentials()
+				if let err = res.error.value{
+					throw PrivMXEndpointError.otherFailure(err)
+				}
+				guard let resv = res.result.value
+				else {
+					throw PrivMXEndpointError.otherFailure(.init(name: "missing val", message: "", description: ""))
+				}
+				var result = [privmx.endpoint.stream.TurnCredentials]()
+				resv.forEach({
+					result.append($0)
+				})
+				return result
+			},
 			setNewOfferOnReconfigure: {
 				sessionId, sdp in
 				let res = self.api.setNewOfferOnReconfigure(sessionId, sdp)

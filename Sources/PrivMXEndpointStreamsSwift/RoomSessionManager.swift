@@ -15,12 +15,8 @@ import WebRTC
 import Foundation
 
 public final class RoomSessionManager: Sendable{
-	public func muteAudioOutFor(_ roomId:String) -> Void {
-		roomSessions[roomId]?.publisher?.audioTracks.forEach {
-			$0.value.sender.track = nil
-		}
-	}
 	
+	private let _getTurnCredentials: @Sendable () throws -> [privmx.endpoint.stream.TurnCredentials]
 	nonisolated(unsafe) var onAudioTrack: ((String,RTCAudioTrack) -> Void)?
 	nonisolated(unsafe)var onVideoTrack: ((String,RTCVideoTrack) -> Void)?
 	
@@ -28,13 +24,14 @@ public final class RoomSessionManager: Sendable{
 	nonisolated(unsafe) var roomSessions: [String:RoomJanusSession] = [:]
 	
 	private let onTrickle: @Sendable (Int64,String) throws -> Void
-	public nonisolated(unsafe) let peerConnectionFactory: RTCPeerConnectionFactory
+	nonisolated(unsafe) let peerConnectionFactory: RTCPeerConnectionFactory
 	
 	private let setNewOfferOnReconfigure: @Sendable (Int64,privmx.endpoint.stream.SdpWithTypeModel) throws -> Void
 	private let acceptOfferOnReconfigure: @Sendable (Int64,privmx.endpoint.stream.SdpWithTypeModel) throws -> Void
 	
 	static func create(
 		onTrickle: @escaping @Sendable (Int64,String) throws -> Void,
+		getTurnCredentials: @escaping @Sendable () throws -> [privmx.endpoint.stream.TurnCredentials],
 		setNewOfferOnReconfigure: @escaping @Sendable (Int64,privmx.endpoint.stream.SdpWithTypeModel) throws -> Void,
 		acceptOfferOnReconfigure: @escaping @Sendable (Int64,privmx.endpoint.stream.SdpWithTypeModel) throws -> Void,
 	) -> RoomSessionManager {
@@ -44,6 +41,7 @@ public final class RoomSessionManager: Sendable{
 		
 		var mgr = RoomSessionManager(
 			onTrickle: onTrickle,
+			getTurnCredentials: getTurnCredentials,
 			peerConnectionFactory: RTCPeerConnectionFactory(
 				encoderFactory: encf,
 			 decoderFactory: RTCDefaultVideoDecoderFactory()),
@@ -52,6 +50,12 @@ public final class RoomSessionManager: Sendable{
 		)
 		return mgr
 	}
+	
+	func getTurnCredentials(
+	) throws -> [privmx.endpoint.stream.TurnCredentials] {
+		try _getTurnCredentials()
+	}
+	
 	@discardableResult
 	func addRoomSessionFor(
 		_ roomId: String
@@ -356,9 +360,16 @@ public final class RoomSessionManager: Sendable{
 				}
 			}
 		})
-		
+		var conf = RTCConfiguration()
+		if let turncreds = try? getTurnCredentials(){
+			conf.iceTransportPolicy = .all
+			turncreds.forEach({
+				cred in
+				conf.iceServers.append(.init(urlStrings: [String(cred.url)], username: String(cred.username), credential: String(cred.password)))
+			})
+		}
 		return (self.peerConnectionFactory.peerConnection(
-			with: RTCConfiguration(),
+			with: conf,
 			constraints: RTCMediaConstraints.init(
 				mandatoryConstraints: [:],
 				optionalConstraints: nil),
@@ -367,11 +378,13 @@ public final class RoomSessionManager: Sendable{
 	
 	private init(
 		onTrickle: @escaping @Sendable (Int64,String) throws -> Void,
+		getTurnCredentials: @escaping @Sendable () throws -> [privmx.endpoint.stream.TurnCredentials],
 		peerConnectionFactory: RTCPeerConnectionFactory,
 		onSetNewOfferOnReconfigure: @escaping @Sendable (Int64,privmx.endpoint.stream.SdpWithTypeModel) throws -> Void,
 		onAcceptOfferOnReconfigure: @escaping @Sendable (Int64,privmx.endpoint.stream.SdpWithTypeModel) throws -> Void
 	){
 		self.onTrickle = onTrickle
+		self._getTurnCredentials = getTurnCredentials
 		self.peerConnectionFactory = peerConnectionFactory
 		self.setNewOfferOnReconfigure = onSetNewOfferOnReconfigure
 		self.acceptOfferOnReconfigure = onAcceptOfferOnReconfigure
