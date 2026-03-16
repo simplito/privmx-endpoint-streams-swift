@@ -1,5 +1,5 @@
 //
-// PrivMX Endpoint Swift
+// PrivMX Endpoint Streams Swift
 // Copyright © 2026 Simplito sp. z o.o.
 //
 // This file is part of PrivMX Platform (https://privmx.dev).
@@ -124,5 +124,3 @@ public final class JanusSubscriber:JanusConnection, @unchecked Sendable{
 		return res
 	}
 }
-
- // Streams

@@ -1,5 +1,5 @@
 //
-// PrivMX Endpoint Swift
+// PrivMX Endpoint Streams Swift
 // Copyright © 2026 Simplito sp. z o.o.
 //
 // This file is part of PrivMX Platform (https://privmx.dev).
@@ -40,20 +40,17 @@ final class StreamOutput:NSObject, SCStreamOutput{
 public final class PMXDesktopCapturer: RTCVideoCapturer, @unchecked Sendable{
 
 	private var sampleHandlerQueue = DispatchQueue(label: "sample_handler")
-	//private var audioSource: RTCAudioSource?
 	nonisolated(unsafe) private let stream: SCStream
 	var x : RTCMediaSource?
 	let output = StreamOutput()
 	public init(
 		videoDelegate: RTCVideoCapturerDelegate,
-		//audioDelegate: RTCAudioSource? = nil,
 		filter: SCContentFilter,
 		configuration: SCStreamConfiguration
 	) throws {
 		if configuration.pixelFormat != kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange{
 			throw PrivMXEndpointError.otherFailure(privmx.InternalError.init(name: "Illegal pixel format", message: "", description: ""))
 		}
-		//self.audioSource = audioDelegate
 		self.stream = SCStream(
 			filter: filter,
 			configuration: configuration,

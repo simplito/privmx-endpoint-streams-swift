@@ -1,5 +1,5 @@
 //
-// PrivMX Endpoint Swift
+// PrivMX Endpoint Streams Swift
 // Copyright © 2026 Simplito sp. z o.o.
 //
 // This file is part of PrivMX Platform (https://privmx.dev).
@@ -294,7 +294,6 @@ final class PMXPeerConnectionDelegate:NSObject,RTCPeerConnectionDelegate, @unche
 				cryptors.value[track.trackId] = (pfct!,deleg)
 			}
 			unprocessedTracks[track.trackId] = track
-			//onStartedReceiving?(peerConnection,transceiver)
 		}
 	}
 	

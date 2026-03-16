@@ -1,5 +1,5 @@
 //
-// PrivMX Endpoint Swift
+// PrivMX Endpoint Streams Swift
 // Copyright © 2026 Simplito sp. z o.o.
 //
 // This file is part of PrivMX Platform (https://privmx.dev).
@@ -436,24 +436,19 @@ public class StreamApi: @unchecked Sendable{
 		_ track: RTCVideoTrack,
 		toRoomSession roomId:String
 	) throws -> Void {
-		//print("[pmx][dbg] local video track count",roomSessionManager.roomSessions[roomId]?.publisher?.videoTracks.count)
 		try roomSessionManager.addVideoTrack(track, to: roomId)
-		//print("[pmx][dbg] local video track count",roomSessionManager.roomSessions[roomId]?.publisher?.videoTracks.count)
 	}
 	
 	public func addTrack(
 		_ track: RTCAudioTrack,
 		toRoomSession roomId:String
 	) throws -> Void {
-		//print("[pmx][dbg] local audio track count",roomSessionManager.roomSessions[roomId]?.publisher?.audioTracks.count)
 		try roomSessionManager.addAudioTrack(track, to: roomId)
-		//print("[pmx][dbg] local audio track count",roomSessionManager.roomSessions[roomId]?.publisher?.audioTracks.count)
-		
 	}
 	
 	
 	
-	#if os(macOS)
+#if os(macOS)
 	public func createVideoTrackAndSource(
 		id: String,
 		forScreenCast: Bool = false
@@ -462,7 +457,7 @@ public class StreamApi: @unchecked Sendable{
 		var trk = roomSessionManager.peerConnectionFactory.videoTrack(with: src, trackId: id)
 		return (trk,src)
 	}
-	#else
+#else
 	public func createVideoTrackAndSource(
 		id: String
 	) -> (track:RTCVideoTrack, source: RTCVideoSource) {
@@ -470,7 +465,7 @@ public class StreamApi: @unchecked Sendable{
 		var trk = roomSessionManager.peerConnectionFactory.videoTrack(with: src, trackId: id)
 		return (trk,src)
 	}
-	#endif
+#endif
 	
 	public func createAudioTrackAndSource(
 		id: String
