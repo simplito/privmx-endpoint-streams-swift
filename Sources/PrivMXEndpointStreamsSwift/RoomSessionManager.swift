@@ -1,5 +1,5 @@
 //
-// PrivMX Endpoint Swift
+// PrivMX Endpoint Streams Swift
 // Copyright © 2026 Simplito sp. z o.o.
 //
 // This file is part of PrivMX Platform (https://privmx.dev).
@@ -453,7 +453,6 @@ public final class RoomSessionManager: Sendable{
 				nonisolated(unsafe) let streamRoomId = context!.pointee.roomId,
 										sdp = context!.pointee.sdp,
 										type = context!.pointee.type
-				//RTCLogEx(.info,sdp)
 				Task.detached{
 					@Sendable in
 					defer {done = true}
@@ -488,7 +487,6 @@ public final class RoomSessionManager: Sendable{
 				return result
 			},
 			{context in//SetAnswerAndSetRemoteDescription
-				//TODO: Impl saasrd
 				nonisolated(unsafe) var this = Unmanaged<RoomJanusSession>.fromOpaque(context!.pointee.context).takeUnretainedValue()
 				nonisolated(unsafe) var res = privmx.InternalError()
 				nonisolated(unsafe) var done = false

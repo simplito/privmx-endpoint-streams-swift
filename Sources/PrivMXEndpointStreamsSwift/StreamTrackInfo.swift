@@ -1,5 +1,5 @@
 //
-// PrivMX Endpoint Swift
+// PrivMX Endpoint Streams Swift
 // Copyright © 2026 Simplito sp. z o.o.
 //
 // This file is part of PrivMX Platform (https://privmx.dev).
@@ -12,11 +12,6 @@
 import Foundation
 import WebRTC
 import PrivMXEndpointSwiftNative
-
-public struct DataChannelMeta: Hashable{
-	var name: String
-	// TODO: fill Data Channel Metadata or remove
-}
 
 public struct AudioTrackInfo{
 	public var track: RTCAudioTrack
