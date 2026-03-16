@@ -31,7 +31,7 @@ public class JanusConnection: @unchecked Sendable{
 		type: String,
 		roomId:String
 	) async throws -> privmx.endpoint.stream.SdpWithRoomModel{
-		throw PrivMXEndpointError.otherFailure(.init(name: "Not implemented in base", message: "Call this method on Publisher or Sender", description: ""))
+		throw PESStreamsError.failedReconfiguringPeer(.init(name: "Not implemented in base class", message: "", description: ""))
 	}
 	
 	func updateSessionId(
@@ -62,7 +62,7 @@ public final class JanusPublisher:JanusConnection, @unchecked Sendable{
 			case "rollback","Rollback":
 					.rollback
 			default:
-				throw PrivMXEndpointError.otherFailure(privmx.InternalError(name: "Unknown Type", message: "", description: "got \(type) but couldn't map it to RTCSdpType"))
+				throw PESStreamsError.failedReconfiguringPeer(privmx.InternalError(name: "Unknown Type", message: "", description: "got \(type) but couldn't map it to RTCSdpType"))
 		}
 		
 		var pc = self.peerConnection
@@ -94,7 +94,7 @@ public final class JanusSubscriber:JanusConnection, @unchecked Sendable{
 			case "rollback","Rollback":
 					.rollback
 			default:
-				throw PrivMXEndpointError.otherFailure(privmx.InternalError(name: "Unknown Type", message: "", description: "got \(type) but couldn't map it to RTCSdpType"))
+				throw PESStreamsError.failedReconfiguringPeer(privmx.InternalError(name: "Unknown Type", message: "", description: "got \(type) but couldn't map it to RTCSdpType"))
 		}
 		
 		var pc = self.peerConnection
@@ -112,7 +112,7 @@ public final class JanusSubscriber:JanusConnection, @unchecked Sendable{
 			case .rollback:
 				"rollback"
 			@unknown default:
-				throw PrivMXEndpointError.otherFailure(privmx.InternalError(
+				throw PESStreamsError.failedReconfiguringPeer(privmx.InternalError(
 					name: "Unknown Type",
 					message: "",
 					description: "got \(type) but couldn't map it to RTCSdpType"))

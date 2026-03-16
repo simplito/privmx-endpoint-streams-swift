@@ -38,7 +38,7 @@ public class StreamApi: @unchecked Sendable{
 			var err = privmx.InternalError()
 			err.name = "Value error"
 			err.description = "Unexpectedly received nil result"
-			throw PrivMXEndpointError.otherFailure(err)
+			throw PESStreamsError.failedInstancingStreamApi(err)
 		}
 		var sa = StreamApi(
 			api: api
@@ -95,14 +95,14 @@ public class StreamApi: @unchecked Sendable{
 			op)
 		guard res.error.value == nil
 		else {
-			throw PrivMXEndpointError.otherFailure(res.error.value!)
+			throw PESStreamsError.failedCreatingStreamRoom(res.error.value!)
 		}
 		guard let result = res.result.value
 		else{
 			var err = privmx.InternalError()
 			err.name = "Value error"
 			err.description = "Unexpectedly received nil result"
-			throw PrivMXEndpointError.otherFailure(err)
+			throw PESStreamsError.failedCreatingStreamRoom(err)
 		}
 		
 		return String(result)
@@ -148,7 +148,7 @@ public class StreamApi: @unchecked Sendable{
 			forceGenerateNewKey,
 			op)
 		guard res.error.value == nil else {
-			throw PrivMXEndpointError.otherFailure(res.error.value!)
+			throw PESStreamsError.failedUpdatingStreamRoom(res.error.value!)
 		}
 	}
 	
@@ -161,13 +161,13 @@ public class StreamApi: @unchecked Sendable{
 			std.string(contextId),
 			query)
 		guard res.error.value == nil else {
-			throw PrivMXEndpointError.otherFailure(res.error.value!)
+			throw PESStreamsError.failedListingStreamRooms(res.error.value!)
 		}
 		guard let result = res.result.value else {
 			var err = privmx.InternalError()
 			err.name = "Value error"
 			err.description = "Unexpectedly recived nil result"
-			throw PrivMXEndpointError.otherFailure(err)
+			throw PESStreamsError.failedListingStreamRooms(err)
 		}
 		return result
 	}
@@ -177,14 +177,14 @@ public class StreamApi: @unchecked Sendable{
 		_ streamRoomId: String
 	) throws -> privmx.endpoint.stream.StreamRoom {
 		let res = api.getStreamRoom(std.string(streamRoomId))
-		guard res.error.value == nil else {
-			throw PrivMXEndpointError.otherFailure(res.error.value!)
+		if let err = res.error.value {
+			throw PESStreamsError.failedGettingStreamRoom(err)
 		}
 		guard let result = res.result.value else {
 			var err = privmx.InternalError()
 			err.name = "Value error"
 			err.description = "Unexpectedly recived nil result"
-			throw PrivMXEndpointError.otherFailure(err)
+			throw PESStreamsError.failedGettingStreamRoom(err)
 		}
 		return result
 	}
@@ -193,8 +193,8 @@ public class StreamApi: @unchecked Sendable{
 		_ streamRoomId: String
 	) throws -> Void {
 		let res = api.deleteStreamRoom(std.string(streamRoomId))
-		guard res.error.value == nil else {
-			throw PrivMXEndpointError.otherFailure(res.error.value!)
+		if let err = res.error.value{
+			throw PESStreamsError.failedDeletingStreamRoom(err)
 		}
 	}
 	
@@ -208,7 +208,7 @@ public class StreamApi: @unchecked Sendable{
 		var session = try roomSessionManager.addRoomSessionFor(streamRoomId)
 		guard let instance = session.webRTCInstance
 		else {
-			throw PrivMXEndpointError.otherFailure(
+			throw PESStreamsError.failedJoiningStreamRoom(
 				.init(
 					name: "Missing session for room",
 					message: "",
@@ -220,7 +220,7 @@ public class StreamApi: @unchecked Sendable{
 		)
 		if let err = res.error.value{
 			roomSessionManager.roomSessions[streamRoomId] = nil
-			throw PrivMXEndpointError.otherFailure(err)
+			throw PESStreamsError.failedJoiningStreamRoom(err)
 		}
 		roomSessionManager.setAudioStreamsHandler(audioTrackHandler)
 		roomSessionManager.setVideoStreamsHandler(videoTrackHandler)
@@ -239,7 +239,7 @@ public class StreamApi: @unchecked Sendable{
 		let res = api.leaveStreamRoom(std.string(roomId))
 		
 		if let err = res.error.value{
-			throw PrivMXEndpointError.otherFailure(err)
+			throw PESStreamsError.failedLeavingStreamRoom(err)
 		}
 		
 		roomSessionManager.roomSessions[roomId] = nil
@@ -252,13 +252,13 @@ public class StreamApi: @unchecked Sendable{
 		_ = try roomSessionManager.roomSessions[streamRoomId]?.getOrCreatePublisher()
 		let res = api.createStream(std.string(streamRoomId))
 		guard res.error.value == nil else {
-			throw PrivMXEndpointError.otherFailure(res.error.value!)
+			throw PESStreamsError.failedCreatingStream(res.error.value!)
 		}
 		guard let streamHandle = res.result.value else {
 			var err = privmx.InternalError()
 			err.name = "Value error"
 			err.description = "Unexpectedly recived nil result"
-			throw PrivMXEndpointError.otherFailure(err)
+			throw PESStreamsError.failedCreatingStream(err)
 		}
 		roomSessionManager.roomIdsForHandles[streamHandle] = streamRoomId
 		return streamHandle
@@ -272,11 +272,11 @@ public class StreamApi: @unchecked Sendable{
 		}
 		let res = api.updateStream(handle)
 		if let err = res.error.value {
-			throw PrivMXEndpointError.otherFailure(err)
+			throw PESStreamsError.failedUpdatingStream(err)
 		}
 		guard let result = res.result.value
 		else {
-			throw PrivMXEndpointError.otherFailure(.init(name: "Missing value", message: "", description: ""))
+			throw PESStreamsError.failedUpdatingStream(.init(name: "Missing value", message: "", description: ""))
 		}
 		
 		return result
@@ -288,7 +288,7 @@ public class StreamApi: @unchecked Sendable{
 		
 		guard let sh = roomSessionManager.roomIdsForHandles[streamHandle]
 		else {
-			throw PrivMXEndpointError.otherFailure(.init(
+			throw PESStreamsError.failedPublishingStream(.init(
 				name: "Unknown stream handle",
 				message: "",
 				description: "")
@@ -298,7 +298,7 @@ public class StreamApi: @unchecked Sendable{
 		
 		guard let session = roomSessionManager.roomSessions[sh]
 		else {
-			throw PrivMXEndpointError.otherFailure(
+			throw PESStreamsError.failedPublishingStream(
 				.init(
 					name: "Couldn't create cryptor",
 					message: "", description: ""
@@ -310,11 +310,11 @@ public class StreamApi: @unchecked Sendable{
 		let res = api.publishStream(streamHandle)
 		
 		if let err = res.error.value {
-			throw PrivMXEndpointError.otherFailure(err)
+			throw PESStreamsError.failedPublishingStream(err)
 		}
 		guard let result = res.result.value
 		else {
-			throw PrivMXEndpointError.otherFailure(.init(name: "Missing result", message: "", description: ""))
+			throw PESStreamsError.failedPublishingStream(.init(name: "Missing result", message: "", description: ""))
 		}
 		
 		return result
@@ -325,13 +325,13 @@ public class StreamApi: @unchecked Sendable{
 	) throws -> privmx.StreamInfoVector {
 		let res = api.listStreams(std.string(streamRoomId))
 		guard res.error.value == nil else {
-			throw PrivMXEndpointError.otherFailure(res.error.value!)
+			throw PESStreamsError.failedListingStreams(res.error.value!)
 		}
 		guard let result = res.result.value else {
 			var err = privmx.InternalError()
 			err.name = "Value error"
 			err.description = "Unexpectedly recived nil result"
-			throw PrivMXEndpointError.otherFailure(err)
+			throw PESStreamsError.failedListingStreams(err)
 		}
 		return result
 	}
@@ -344,7 +344,7 @@ public class StreamApi: @unchecked Sendable{
 		}
 		let res = api.unpublishStream(streamHandle)
 		guard res.error.value == nil else {
-			throw PrivMXEndpointError.otherFailure(res.error.value!)
+			throw PESStreamsError.failedUnpublishingStream(res.error.value!)
 		}
 	}
 	
@@ -362,7 +362,7 @@ public class StreamApi: @unchecked Sendable{
 		let res = api.subscribeToRemoteStreams(std.string(streamRoomId),
 											   siv)
 		if let err = res.error.value{
-			throw PrivMXEndpointError.otherFailure(err)
+			throw PESStreamsError.failedSubscribingToRemoteStreams(err)
 		}
 	}
 	
@@ -372,7 +372,7 @@ public class StreamApi: @unchecked Sendable{
 		subscriptionsToRemove: [privmx.endpoint.stream.StreamSubscription]
 	) throws -> Void{
 		
-			roomSessionManager.updateTurnCredentialsFor(streamRoomId)
+		roomSessionManager.updateTurnCredentialsFor(streamRoomId)
 		
 		var rsiv = privmx.StreamSubscriptiopnsVector()
 		rsiv.reserve(subscriptionsToRemove.count)
@@ -389,6 +389,9 @@ public class StreamApi: @unchecked Sendable{
 			std.string(streamRoomId),
 			asiv,
 			rsiv)
+		if let err = res.error.value {
+			throw PESStreamsError.failedModyfyingRemoteStreamsSubscriptions(err)
+		}
 	}
 	
 	public func unsubscribeFromRemoteStreams(
@@ -402,8 +405,8 @@ public class StreamApi: @unchecked Sendable{
 			siv.push_back(i)
 		}
 		let res = api.unsubscribeFromRemoteStreams(std.string(streamRoomId), siv)
-		guard res.error.value == nil else {
-			throw PrivMXEndpointError.otherFailure(res.error.value!)
+		if let err =  res.error.value{
+			throw PESStreamsError.failedUnsubscribingFromRemoteStreams(res.error.value!)
 		}
 	}
 	
@@ -418,7 +421,7 @@ public class StreamApi: @unchecked Sendable{
 	) throws -> Void{
 		guard let session = roomSessionManager.roomSessions[roomId]
 		else {
-			throw PrivMXEndpointError.otherFailure(.init(name: "", message: "", description: ""))
+			throw PESStreamsError.failedSettingDropBrokenFramesOption(.init(name: "No Session for Room", message: "", description: ""))
 		}
 		for c in session.subscriber?.peerConnectionDelegate.cryptors.value ?? [:] {
 			c.value.0.setDropFramesIfCryptionFailed(enable)
@@ -593,11 +596,11 @@ public class StreamApi: @unchecked Sendable{
 			getTurnCredentials: {
 				let res = self.api.getTurnCredentials()
 				if let err = res.error.value{
-					throw PrivMXEndpointError.otherFailure(err)
+					throw PESStreamsError.failedGettingTurnCredentials(err)
 				}
 				guard let resv = res.result.value
 				else {
-					throw PrivMXEndpointError.otherFailure(.init(name: "missing val", message: "", description: ""))
+					throw PESStreamsError.failedGettingTurnCredentials(.init(name: "Value Error", message: "Unexpectedly received nil", description: "Could not get Turn Credentials"))
 				}
 				var result = [privmx.endpoint.stream.TurnCredentials]()
 				resv.forEach({
@@ -609,7 +612,7 @@ public class StreamApi: @unchecked Sendable{
 				sessionId, sdp in
 				let res = self.api.setNewOfferOnReconfigure(sessionId, sdp)
 				if let err = res.error.value{
-					throw PrivMXEndpointError.otherFailure(err)
+					throw PESStreamsError.failedSettingNewOfferOnReconfigure(err)
 				}
 				RTCLogEx(.info, "[PMX] called setNewOffer on Reonfigure")
 			},
@@ -617,7 +620,7 @@ public class StreamApi: @unchecked Sendable{
 				sessionId, sdp in
 				let res = self.api.acceptOfferOnReconfigure(sessionId, sdp)
 				if let err = res.error.value{
-					throw PrivMXEndpointError.otherFailure(err)
+					throw PESStreamsError.failedAcceptingOfferOnReconfigure(err)
 				}
 				RTCLogEx(.info, "[PMX] called acceptOffer on Reonfigure")
 			}

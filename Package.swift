@@ -23,7 +23,12 @@ let package = Package(
     targets: [
         .target(
             name: "PrivMXEndpointStreamsSwift",
-			dependencies: [.product(name: "PrivMXEndpointSwift", package: "privmx-endpoint-swift")],
+			dependencies: [
+				.product(
+					name: "PrivMXEndpointSwift",
+					package: "privmx-endpoint-swift"),
+				"WebRTC",
+			],
             swiftSettings: [
 				.interoperabilityMode(.Cxx),
 						   ]
