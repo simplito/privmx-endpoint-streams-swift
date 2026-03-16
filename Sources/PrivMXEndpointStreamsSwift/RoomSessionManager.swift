@@ -57,9 +57,9 @@ public final class RoomSessionManager: Sendable{
 	) throws -> RoomJanusSession {
 		guard roomSessions[roomId] == nil
 		else {
-			throw PrivMXEndpointError.otherFailure(.init(
+			throw PESStreamsError.failedJoiningStreamRoom(.init(
 				name: "Room Session already exists",
-				message: "",
+				message: "You have already joined this StreamRoom",
 				description: "")
 			)
 		}
@@ -137,7 +137,7 @@ public final class RoomSessionManager: Sendable{
 	) throws -> Void {
 		guard let session = roomSessions[roomId]
 		else {
-			throw PrivMXEndpointError.otherFailure(
+			throw PESStreamsError.failedAddingTrack(
 				.init(
 					name: "No session for room",
 					message: "", description: ""
@@ -147,7 +147,7 @@ public final class RoomSessionManager: Sendable{
 		let pub = try session.getOrCreatePublisher()
 		guard nil == pub.videoTracks[track.trackId] else
 		{
-			throw PrivMXEndpointError.otherFailure(
+			throw PESStreamsError.failedAddingTrack(
 				.init(
 					name: "Track already added",
 					message: "", description: ""
@@ -159,7 +159,7 @@ public final class RoomSessionManager: Sendable{
 		guard var sender = pub.peerConnection.addTransceiver(with: track, init: tinit)
 
 		else {
-			throw PrivMXEndpointError.otherFailure(
+			throw PESStreamsError.failedAddingTrack(
 				.init(
 					name: "Couldn't create sender",
 					message: "", description: ""
@@ -172,7 +172,7 @@ public final class RoomSessionManager: Sendable{
 			   with: peerConnectionFactory,
 			pmxKeyStore: session.keyStore.value)
 		else {
-			throw PrivMXEndpointError.otherFailure(
+			throw PESStreamsError.failedAddingTrack(
 				.init(
 					name: "Couldn't create cryptor",
 					message: "", description: ""
@@ -192,7 +192,7 @@ public final class RoomSessionManager: Sendable{
 	) throws -> Void {
 		guard let session = roomSessions[roomId]
 		else {
-			throw PrivMXEndpointError.otherFailure(
+			throw PESStreamsError.failedAddingTrack(
 				.init(
 					name: "No session for room",
 					message: "", description: ""
@@ -202,7 +202,7 @@ public final class RoomSessionManager: Sendable{
 		let pub = try session.getOrCreatePublisher()
 		guard nil == pub.videoTracks[track.trackId] else
 		{
-			throw PrivMXEndpointError.otherFailure(
+			throw PESStreamsError.failedAddingTrack(
 				.init(
 					name: "Track already added",
 					message: "", description: ""
@@ -214,7 +214,7 @@ public final class RoomSessionManager: Sendable{
 		tinit.direction = .sendOnly
 		guard var sender = pub.peerConnection.addTransceiver(with: track,init: tinit)
 		else {
-			throw PrivMXEndpointError.otherFailure(
+			throw PESStreamsError.failedAddingTrack(
 				.init(
 					name: "Couldn't create sender",
 					message: "", description: ""
@@ -227,7 +227,7 @@ public final class RoomSessionManager: Sendable{
 			with: peerConnectionFactory,
 			pmxKeyStore: session.keyStore.value)
 		else {
-			throw PrivMXEndpointError.otherFailure(
+			throw PESStreamsError.failedAddingTrack(
 				.init(
 					name: "Couldn't create cryptor",
 					message: "", description: ""
@@ -246,12 +246,12 @@ public final class RoomSessionManager: Sendable{
 	) throws -> Bool {
 		guard let rid = roomIdsForHandles[handle], let publisher = roomSessions[rid]?.publisher
 		else {
-			throw PrivMXEndpointError.otherFailure(.init(name: "No publisher found", message: "", description: ""))
+			throw PESStreamsError.failedRemovingTrack(.init(name: "No publisher found", message: "", description: ""))
 		}
 		if let sender = publisher.videoTracks[track.trackId]?.sender {
 			return publisher.peerConnection.removeTrack(sender)
 		} else {
-			throw PrivMXEndpointError.otherFailure(.init(name: "No sender for track", message: "", description: ""))
+			throw PESStreamsError.failedRemovingTrack(.init(name: "No sender for track", message: "", description: ""))
 		}
 	}
 	
@@ -261,12 +261,12 @@ public final class RoomSessionManager: Sendable{
 	) throws -> Bool {
 		guard let rid = roomIdsForHandles[handle], let publisher = roomSessions[rid]?.publisher
 		else {
-			throw PrivMXEndpointError.otherFailure(.init(name: "No publisher found", message: "", description: ""))
+			throw PESStreamsError.failedRemovingTrack(.init(name: "No publisher found", message: "", description: ""))
 		}
 		if let sender = publisher.audioTracks[track.trackId]?.sender {
 			return publisher.peerConnection.removeTrack(sender)
 		} else {
-			throw PrivMXEndpointError.otherFailure(.init(name: "No sender for track", message: "", description: ""))
+			throw PESStreamsError.failedRemovingTrack(.init(name: "No sender for track", message: "", description: ""))
 		}
 		
 	}
@@ -470,8 +470,8 @@ public final class RoomSessionManager: Sendable{
 							result = privmx.StringWithError(
 								result: "",
 								isvalid: true,
-								errname: std.string("\((err as? PrivMXEndpointError)?.getName() ?? "ERROR")"),
-								errwhat: std.string("\((err as? PrivMXEndpointError)?.getDescription())")
+								errname: std.string("\((err as? PESStreamsError)?.getName() ?? "ERROR")"),
+								errwhat: std.string("\((err as? PESStreamsError)?.getDescription())")
 							)
 						}
 					} else {
