@@ -434,16 +434,18 @@ public class StreamApi: @unchecked Sendable{
 	//MARK: - Tracks
 	public func addTrack(
 		_ track: RTCVideoTrack,
-		toRoomSession roomId:String
+		toRoomSession roomId:String,
+		withCryptorObserver observer: PMXFrameCryptorObserver? = nil
 	) throws -> Void {
-		try roomSessionManager.addVideoTrack(track, to: roomId)
+		try roomSessionManager.addVideoTrack(track, to: roomId,withCryptorObserver: observer)
 	}
 	
 	public func addTrack(
 		_ track: RTCAudioTrack,
-		toRoomSession roomId:String
+		toRoomSession roomId:String,
+		withCryptorObserver observer: PMXFrameCryptorObserver? = nil
 	) throws -> Void {
-		try roomSessionManager.addAudioTrack(track, to: roomId)
+		try roomSessionManager.addAudioTrack(track, to: roomId,withCryptorObserver: observer)
 	}
 	
 	

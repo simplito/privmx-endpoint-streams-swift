@@ -133,7 +133,8 @@ public final class RoomSessionManager: Sendable{
 	
 	func addVideoTrack(
 		_ track: RTCVideoTrack,
-		to roomId: String
+		to roomId: String,
+		withCryptorObserver observer: PMXFrameCryptorObserver? = nil
 	) throws -> Void {
 		guard let session = roomSessions[roomId]
 		else {
@@ -179,6 +180,9 @@ public final class RoomSessionManager: Sendable{
 				)
 			)
 		}
+		if let observer{
+			cryptor.register(observer)
+		}
 		pub.videoTracks[track.trackId] = VideoTrackInfo(
 			track: track,
 			sender: sender.sender,
@@ -188,7 +192,8 @@ public final class RoomSessionManager: Sendable{
 	
 	func addAudioTrack(
 		_ track: RTCAudioTrack,
-		to roomId: String
+		to roomId: String,
+		withCryptorObserver observer: PMXFrameCryptorObserver? = nil
 	) throws -> Void {
 		guard let session = roomSessions[roomId]
 		else {
@@ -233,6 +238,9 @@ public final class RoomSessionManager: Sendable{
 					message: "", description: ""
 				)
 			)
+		}
+		if let observer{
+			cryptor.register(observer)
 		}
 		pub.audioTracks[track.trackId] = AudioTrackInfo(
 			track: track,
