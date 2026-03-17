@@ -39,6 +39,15 @@ public class JanusConnection: @unchecked Sendable{
 	) -> Void {
 		self.sessionId = sid
 	}
+	
+	func setconnectionStateChangedCallbacks(
+	onIceConnectionStateChangedCallback:(@Sendable (RTCPeerConnection,RTCIceConnectionState)->Void)?,
+	onPeerConnectionStateChangedCallback:(@Sendable (RTCPeerConnection,RTCPeerConnectionState)->Void)?
+	) -> Void{
+		peerConnectionDelegate.setPeerConnectionStateChangedCallback(onPeerConnectionStateChangedCallback)
+		peerConnectionDelegate.setIceConnectionStateChangedCallback(onIceConnectionStateChangedCallback)
+	}
+	
 }
 
 public final class JanusPublisher:JanusConnection, @unchecked Sendable{
@@ -50,8 +59,7 @@ public final class JanusPublisher:JanusConnection, @unchecked Sendable{
 		type: String,
 		roomId:String
 	) async throws -> privmx.endpoint.stream.SdpWithRoomModel{
-		print("reconfigure peer connection")
-		print("reconfigure type: ",type)
+		RTCLogEx(.info,"reconfigure peer connection")
 		let tp: RTCSdpType = switch type {
 			case "answer","Answer":
 					.answer
@@ -65,6 +73,7 @@ public final class JanusPublisher:JanusConnection, @unchecked Sendable{
 				throw PESStreamsError.failedReconfiguringPeer(privmx.InternalError(name: "Unknown Type", message: "", description: "got \(type) but couldn't map it to RTCSdpType"))
 		}
 		
+		RTCLogEx(.info,"reconfigure type: \(type)")
 		var pc = self.peerConnection
 		
 		try await pc.setRemoteDescription(RTCSessionDescription(type: tp, sdp: String(sdp)))
@@ -82,8 +91,8 @@ public final class JanusSubscriber:JanusConnection, @unchecked Sendable{
 		type: String,
 		roomId:String
 	) async throws -> privmx.endpoint.stream.SdpWithRoomModel{
-		print("reconfigure peer connection")
-		print("reconfigure type: ",type)
+		RTCLogEx(.info,"reconfigure peer connection")
+		RTCLogEx(.info,"reconfigure type: \(type)")
 		let tp: RTCSdpType = switch type {
 			case "answer","Answer":
 					.answer

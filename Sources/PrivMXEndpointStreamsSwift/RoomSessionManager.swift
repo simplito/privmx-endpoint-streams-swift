@@ -28,7 +28,7 @@ public final class RoomSessionManager: Sendable{
 	
 	private let setNewOfferOnReconfigure: @Sendable (Int64,privmx.endpoint.stream.SdpWithTypeModel) throws -> Void
 	private let acceptOfferOnReconfigure: @Sendable (Int64,privmx.endpoint.stream.SdpWithTypeModel) throws -> Void
-	
+	private let onICEConnectionStateChanged: (@Sendable (RTCPeerConnection,RTCIceConnectionState) -> Void)?
 	static func create(
 		onTrickle: @escaping @Sendable (Int64,String) throws -> Void,
 		getTurnCredentials: @escaping @Sendable () throws -> [privmx.endpoint.stream.TurnCredentials],
@@ -46,7 +46,7 @@ public final class RoomSessionManager: Sendable{
 				encoderFactory: encf,
 			 decoderFactory: RTCDefaultVideoDecoderFactory()),
 			onSetNewOfferOnReconfigure: setNewOfferOnReconfigure,
-			onAcceptOfferOnReconfigure: acceptOfferOnReconfigure
+			onAcceptOfferOnReconfigure: acceptOfferOnReconfigure,
 		)
 		return mgr
 	}
@@ -72,6 +72,8 @@ public final class RoomSessionManager: Sendable{
 			}
 		)
 		setCppCallbacksInSession(&rjs)
+		
+		rjs.publisher?.peerConnectionDelegate.setIceConnectionStateChangedCallback(onICEConnectionStateChanged)
 		rjs.publisher?.peerConnectionDelegate.setIceCandidateGeneratedCallback({
 			peerConnection, candidate in
 			RTCLogEx(.info, "[PMX] will try trickling publisher")
@@ -81,7 +83,7 @@ public final class RoomSessionManager: Sendable{
 					RTCLogEx(.info, "[PMX] trickling publisher")
 					try self.onTrickle(sessionId,iceCandidate)
 				}catch{
-					print("Failed to trickle candidate", error)
+					RTCLogEx(.info,"Failed to trickle candidate \(error)")
 				}
 			}
 		})
@@ -94,12 +96,13 @@ public final class RoomSessionManager: Sendable{
 					RTCLogEx(.info, "[PMX] trickling subscriber")
 					try self.onTrickle(sessionId,iceCandidate)
 				}catch{
-					print("Failed to trickle candidate", error)
+					RTCLogEx(.info,"Failed to trickle candidate \(error)")
 				}
 			}
 		})
 		rjs.publisher?.peerConnectionDelegate.setShouldRenegotiateCallback({
 			pc in
+			RTCLogEx(.info, "[PMX][Renegotiate] Received Should Renegotiate Callback")
 			let offer = try? pc.offer(for: RTCMediaConstraints(mandatoryConstraints:nil,optionalConstraints: nil)) {description,error in
 				if let pub = rjs.publisher, let description{
 					RTCLogEx(.info, "[PMX][Renegotiate] Has publisher and description")
@@ -145,7 +148,7 @@ public final class RoomSessionManager: Sendable{
 				)
 			)
 		}
-		let pub = try session.getOrCreatePublisher()
+		let pub = try session.createPublisher()
 		guard nil == pub.videoTracks[track.trackId] else
 		{
 			throw PESStreamsError.failedAddingTrack(
@@ -204,7 +207,7 @@ public final class RoomSessionManager: Sendable{
 				)
 			)
 		}
-		let pub = try session.getOrCreatePublisher()
+		let pub = try session.createPublisher()
 		guard nil == pub.videoTracks[track.trackId] else
 		{
 			throw PESStreamsError.failedAddingTrack(
@@ -384,13 +387,15 @@ public final class RoomSessionManager: Sendable{
 		getTurnCredentials: @escaping @Sendable () throws -> [privmx.endpoint.stream.TurnCredentials],
 		peerConnectionFactory: RTCPeerConnectionFactory,
 		onSetNewOfferOnReconfigure: @escaping @Sendable (Int64,privmx.endpoint.stream.SdpWithTypeModel) throws -> Void,
-		onAcceptOfferOnReconfigure: @escaping @Sendable (Int64,privmx.endpoint.stream.SdpWithTypeModel) throws -> Void
+		onAcceptOfferOnReconfigure: @escaping @Sendable (Int64,privmx.endpoint.stream.SdpWithTypeModel) throws -> Void,
+		onICEConnectionStateChanged: @escaping @Sendable (RTCPeerConnection,RTCIceConnectionState) -> Void = {_,_ in}
 	){
 		self.onTrickle = onTrickle
 		self.getTurnCredentials = getTurnCredentials
 		self.peerConnectionFactory = peerConnectionFactory
 		self.setNewOfferOnReconfigure = onSetNewOfferOnReconfigure
 		self.acceptOfferOnReconfigure = onAcceptOfferOnReconfigure
+		self.onICEConnectionStateChanged = onICEConnectionStateChanged
 	}
 	
 	func updateTurnCredentialsFor(
@@ -427,27 +432,33 @@ public final class RoomSessionManager: Sendable{
 				nonisolated(unsafe) let streamRoomId = context!.pointee.roomId
 				Task.detached(){
 					@Sendable in
-					let jc = try this.getOrCreatePublisher()
-					let pc = jc.peerConnection
-					do{
-						let res = try await pc.offer(for: RTCMediaConstraints(mandatoryConstraints: [:], optionalConstraints: [:]))
+					if let jc = try this.publisher{
+						let pc = jc.peerConnection
+						do{
+							let res = try await pc.offer(for: RTCMediaConstraints(mandatoryConstraints: [:], optionalConstraints: [:]))
+							result = privmx.StringWithError(
+								result: std.string(res.sdp),
+								isvalid: true,
+								errname: "",
+								errwhat: "")
+							RTCLogEx(.info,"create offer set loc desc")
+							try await pc.setLocalDescription(res)
+							done=true
+						} catch let err{
+							result = privmx.StringWithError(
+								result: "",
+								isvalid: true,
+								errname: "Failed creating SDP",
+								errwhat: std.string(err.localizedDescription))
+							done = true
+						}
+					}else {
 						result = privmx.StringWithError(
-							result: std.string(res.sdp),
-							isvalid: true,
-							errname: "",
+							result: "", isvalid: true,
+							errname: "Missing Publisher",
 							errwhat: "")
-						RTCLogEx(.info,"create offer set loc desc")
-						try await pc.setLocalDescription(res)
-						done=true
-					} catch let err{
-						result = privmx.StringWithError(
-							result: "",
-							isvalid: true,
-							errname: "Failed creating SDP",
-							errwhat: std.string(err.localizedDescription))
 						done = true
 					}
-					
 				}
 				while !done {
 					usleep(100)
@@ -464,7 +475,7 @@ public final class RoomSessionManager: Sendable{
 				Task.detached{
 					@Sendable in
 					defer {done = true}
-					if let jc = try? this.getOrCreateSubscriber(){
+					if let jc = this.subscriber{
 						do{
 							let lpa = try await jc.reconfigure(
 								sdp: String(sdp),
@@ -504,7 +515,7 @@ public final class RoomSessionManager: Sendable{
 				
 				Task.detached{@Sendable in
 					do{
-						try await this.getOrCreatePublisher()
+						try await this.createPublisher()
 							.reconfigure(
 								sdp: sdp,
 								type: type,

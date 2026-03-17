@@ -20,7 +20,7 @@ final class PMXPeerConnectionDelegate:NSObject,RTCPeerConnectionDelegate, @unche
 	var currentKeys : PMXKeyStore
 	weak var peerConnectionFactory : RTCPeerConnectionFactory!
 	
-	var cryptors = MutexGuarded<[String : (PMXFrameCryptorTransformer,PMXFrameCryptorDelegate)]>([:])
+	var cryptors = MutexGuarded<[String : (PMXFrameCryptorTransformer,PMXFrameCryptorObserver?)]>([:])
 	
 	var unprocessedTracks = [String:RTCMediaStreamTrack]()
 	var track2Stream: [String:String] = [:]
@@ -140,16 +140,19 @@ final class PMXPeerConnectionDelegate:NSObject,RTCPeerConnectionDelegate, @unche
 	){
 		onIceCandidateErrorEvent = cb
 	}
+	
 	public func setIceConnectionStateChangedCallback(
 		_ cb :(@Sendable (RTCPeerConnection,RTCIceConnectionState)->Void)?
 	){
 		onIceConnectionStateChanged = cb
 	}
+	
 	public func setIceGatheringStateChangedCallback(
 		_ cb :(@Sendable (RTCPeerConnection,RTCIceGatheringState)->Void)?
 	){
 		onIceGatheringStateChanged = cb
 	}
+	
 	public func setIceCandidateGeneratedCallback(
 		_ cb :(@Sendable (RTCPeerConnection,RTCIceCandidate)->Void)?
 	){
@@ -287,11 +290,10 @@ final class PMXPeerConnectionDelegate:NSObject,RTCPeerConnectionDelegate, @unche
 		let receiver = transceiver.receiver
 		if let track = receiver.track, var peerConnectionFactory {
 			var pfct = PMXFrameCryptorTransformer(for: receiver, with: peerConnectionFactory, pmxKeyStore: currentKeys)
-			var deleg = PMXFrameCryptorDelegate()
 			if pfct != nil{
-			pfct!.register(deleg)
+			//pfct!.register(deleg)
 			pfct!.setDropFramesIfCryptionFailed(true)
-				cryptors.value[track.trackId] = (pfct!,deleg)
+				cryptors.value[track.trackId] = (pfct!,nil)
 			}
 			unprocessedTracks[track.trackId] = track
 		}
@@ -353,4 +355,3 @@ final class PMXPeerConnectionDelegate:NSObject,RTCPeerConnectionDelegate, @unche
 								 reason)
 	}
 }
- // Streams
