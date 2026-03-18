@@ -37,19 +37,29 @@ final class StreamOutput:NSObject, SCStreamOutput{
 
 }
 
+/// `RTCVideoCapturer` implementing Desktop caputre using ScreenCaptureKit.
 public final class PMXDesktopCapturer: RTCVideoCapturer, @unchecked Sendable{
-
 	private var sampleHandlerQueue = DispatchQueue(label: "sample_handler")
 	nonisolated(unsafe) private let stream: SCStream
-	var x : RTCMediaSource?
 	let output = StreamOutput()
+	
+	/// Initialises thw Desktop Capturer with a `RTCVideoCapturerDelegate`, `SCContentFilter` and `SCStreamConfiguration`.
+	///
+	/// - Parameter videoDelegate: an object implementing the `RTCVideoCapturerDelegate`, this will usualy be an instance of RTCVideoSource.
+	/// - Parameter filter: SCContentFilter describing what part of the screen will be captured.
+	/// - Parameter configuration: configuration object for the SCStream.
+	///
+	/// - Throws: when the configuration object specifies a pixel format different from `kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange`.
 	public init(
 		videoDelegate: RTCVideoCapturerDelegate,
 		filter: SCContentFilter,
 		configuration: SCStreamConfiguration
 	) throws {
 		if configuration.pixelFormat != kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange{
-			throw PrivMXEndpointError.otherFailure(privmx.InternalError.init(name: "Illegal pixel format", message: "", description: ""))
+			throw PESStreamsError.failedCreatingDesktopCapturer(privmx.InternalError(
+				name: "Illegal pixel format",
+				message: "",
+				description: ""))
 		}
 		self.stream = SCStream(
 			filter: filter,
@@ -58,21 +68,31 @@ public final class PMXDesktopCapturer: RTCVideoCapturer, @unchecked Sendable{
 		super.init(delegate: videoDelegate)
 	}
 	
+	/// Replaces the `SCContentFilter`.
+	///
+	/// - Parameter filter: the new filter to be used.
+	///
+	/// - Throws: when the update fails.
 	public func updateFilter(
 		_ filter: SCContentFilter
 	) async throws -> Void {
 		try await stream.updateContentFilter(filter)
 	}
 	
-	
+	/// Replaces the `SCStreamConfiguration`.
+	///
+	/// - Parameter filter: the new filter to be used.
+	///
+	/// - Throws: when the update fails.
 	public func updateConfiguration(
 		_ config: SCStreamConfiguration
 	) async throws -> Void {
 		try await stream.updateConfiguration(config)
 	}
 	
+	/// Starts recording the screen.
 	public func startRecording(
-	) throws -> Void {
+	) async throws -> Void {
 		if nil == output.capturer{
 			output.capturer = self
 		}
@@ -80,10 +100,14 @@ public final class PMXDesktopCapturer: RTCVideoCapturer, @unchecked Sendable{
 			output,
 			type: .screen,
 			sampleHandlerQueue: sampleHandlerQueue)
-		Task{
-			try await stream.startCapture()
-		}
+		try await stream.startCapture()
 	}
 	
+	/// Stops recording the screen.
+	public func stopRecording(
+	) async throws -> Void {
+		try await stream.stopCapture()
+		
+	}
 }
 #endif
