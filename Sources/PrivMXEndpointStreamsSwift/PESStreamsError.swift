@@ -49,6 +49,9 @@ public enum PESStreamsError: Error {
 	
 	case failedReconfiguringPeer(privmx.InternalError)
 	
+	case failedCreatingDesktopCapturer(privmx.InternalError)
+	
+	
 	public func getName(
 	) -> String {
 		switch self{
@@ -75,6 +78,7 @@ public enum PESStreamsError: Error {
 					.failedGettingTurnCredentials(let e),
 					.failedSettingNewOfferOnReconfigure(let e),
 					.failedReconfiguringPeer(let e),
+					.failedCreatingDesktopCapturer(let e),
 					.failedSettingDropBrokenFramesOption(let e):
 				String(e.name)
 				
@@ -106,6 +110,7 @@ public enum PESStreamsError: Error {
 					.failedGettingTurnCredentials(let e),
 					.failedSettingNewOfferOnReconfigure(let e),
 					.failedReconfiguringPeer(let e),
+					.failedCreatingDesktopCapturer(let e),
 					.failedSettingDropBrokenFramesOption(let e):
 				String(e.description)
 				
@@ -137,6 +142,7 @@ public enum PESStreamsError: Error {
 					.failedGettingTurnCredentials(let e),
 					.failedSettingNewOfferOnReconfigure(let e),
 					.failedReconfiguringPeer(let e),
+					.failedCreatingDesktopCapturer(let e),
 					.failedSettingDropBrokenFramesOption(let e):
 				String(e.message)
 				
@@ -169,6 +175,7 @@ public enum PESStreamsError: Error {
 					.failedGettingTurnCredentials(let e),
 					.failedSettingNewOfferOnReconfigure(let e),
 					.failedReconfiguringPeer(let e),
+					.failedCreatingDesktopCapturer(let e),
 					.failedSettingDropBrokenFramesOption(let e):
 				e.code.value
 		}
@@ -200,6 +207,7 @@ public enum PESStreamsError: Error {
 					.failedGettingTurnCredentials(let e),
 					.failedSettingNewOfferOnReconfigure(let e),
 					.failedReconfiguringPeer(let e),
+					.failedCreatingDesktopCapturer(let e),
 					.failedSettingDropBrokenFramesOption(let e):
 				if let v = e.scope.value{
 					return String(v)

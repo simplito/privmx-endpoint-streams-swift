@@ -45,11 +45,11 @@ class RoomJanusSession{
 		if nil == _pubJC{
 			var (pc,del) = _getPeerConnectionWithDelegate()
 			guard let pc else {
-				throw PrivMXEndpointError.otherFailure(
+				throw PESStreamsError.failedCreatingPeerConnection(
 					.init(
 						name: "Failed Creating PeerConnection",
 						message: "",
-						description: "")
+						description: "Did not receive a RTCPeerConnection")
 				)
 			}
 			del.setPeerConnectionStateChangedCallback({
@@ -71,7 +71,7 @@ class RoomJanusSession{
 		if nil == _subJC{
 			var (pc,del) = _getPeerConnectionWithDelegate()
 			guard let pc else {
-				throw PrivMXEndpointError.otherFailure(
+				throw PESStreamsError.failedCreatingPeerConnection(
 					.init(
 						name: "Failed Creating PeerConnection",
 						message: "",
