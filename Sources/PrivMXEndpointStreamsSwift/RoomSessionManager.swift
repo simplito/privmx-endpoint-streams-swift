@@ -14,7 +14,7 @@ import PrivMXEndpointSwiftNative
 import WebRTC
 import Foundation
 
-public final class RoomSessionManager: Sendable{
+final class RoomSessionManager: Sendable{
 	
 	private let getTurnCredentials: @Sendable () throws -> [privmx.endpoint.stream.TurnCredentials]
 	nonisolated(unsafe) var onAudioTrack: ((String,RTCAudioTrack) -> Void)?
