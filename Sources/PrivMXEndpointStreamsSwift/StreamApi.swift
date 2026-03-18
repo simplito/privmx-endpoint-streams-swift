@@ -202,8 +202,6 @@ public class StreamApi: @unchecked Sendable{
 		_ streamRoomId: String,
 		audioTrackHandler: ((_ streamId:String,_ track:RTCAudioTrack) -> Void)?,
 		videoTrackHandler: ((_ streamId:String,_ track:RTCVideoTrack) -> Void)?,
-		subscriberConnectionStateChangedCallback: ((RTCPeerConnectionState)->Void)?,
-		publisherConnectionStateChangedCallback: ((RTCPeerConnectionState)->Void)?
 	) throws -> Void {
 		var session = try roomSessionManager.addRoomSessionFor(streamRoomId)
 		guard let instance = session.webRTCInstance
@@ -249,7 +247,7 @@ public class StreamApi: @unchecked Sendable{
 	public func createStreamIn(
 		_ streamRoomId: String
 	) throws -> privmx.endpoint.stream.StreamHandle {
-		_ = try roomSessionManager.roomSessions[streamRoomId]?.getOrCreatePublisher()
+		_ = try roomSessionManager.roomSessions[streamRoomId]?.createPublisher()
 		let res = api.createStream(std.string(streamRoomId))
 		guard res.error.value == nil else {
 			throw PESStreamsError.failedCreatingStream(res.error.value!)
@@ -283,7 +281,9 @@ public class StreamApi: @unchecked Sendable{
 	}
 	
 	public func publishStream(
-		_ streamHandle: privmx.endpoint.stream.StreamHandle
+		_ streamHandle: privmx.endpoint.stream.StreamHandle,
+		onIceConnectionStateChangedCallback:(@Sendable (RTCPeerConnection,RTCIceConnectionState)->Void)? = nil,
+		onPeerConnectionStateChangedCallback:(@Sendable (RTCPeerConnection,RTCPeerConnectionState)->Void)? = nil
 	) throws -> privmx.endpoint.stream.StreamPublishResult {
 		
 		guard let sh = roomSessionManager.roomIdsForHandles[streamHandle]
@@ -305,7 +305,12 @@ public class StreamApi: @unchecked Sendable{
 				)
 			)
 		}
-		var publisher = try session.getOrCreatePublisher()
+		var publisher = try session.createPublisher()
+		
+		publisher.setconnectionStateChangedCallbacks(
+			onIceConnectionStateChangedCallback: onIceConnectionStateChangedCallback,
+			onPeerConnectionStateChangedCallback: onPeerConnectionStateChangedCallback
+		)
 		
 		let res = api.publishStream(streamHandle)
 		
@@ -350,19 +355,28 @@ public class StreamApi: @unchecked Sendable{
 	
 	public func subscribeToRemoteStreams(
 		in streamRoomId: String,
-		subscriptions: [privmx.endpoint.stream.StreamSubscription]
+		subscriptions: [privmx.endpoint.stream.StreamSubscription],
+		onIceConnectionStateChanged: (@Sendable (RTCPeerConnection, RTCIceConnectionState) -> Void)? = nil,
+		onPeerConnectionStateChanged: (@Sendable (RTCPeerConnection, RTCPeerConnectionState) -> Void)? = nil
 	) throws -> Void {
-		
-		roomSessionManager.updateTurnCredentialsFor(streamRoomId)
-		var siv = privmx.StreamSubscriptiopnsVector()
-		siv.reserve(subscriptions.count)
-		for i in subscriptions{
-			siv.push_back(i)
-		}
-		let res = api.subscribeToRemoteStreams(std.string(streamRoomId),
-											   siv)
-		if let err = res.error.value{
-			throw PESStreamsError.failedSubscribingToRemoteStreams(err)
+		if let session = try roomSessionManager.roomSessions[streamRoomId] {
+			if nil == session.subscriber{
+				try session.createSubscriber()
+				session.subscriber?.setconnectionStateChangedCallbacks(
+					onIceConnectionStateChangedCallback: onIceConnectionStateChanged,
+					onPeerConnectionStateChangedCallback: onPeerConnectionStateChanged)
+			}
+			roomSessionManager.updateTurnCredentialsFor(streamRoomId)
+			var siv = privmx.StreamSubscriptiopnsVector()
+			siv.reserve(subscriptions.count)
+			for i in subscriptions{
+				siv.push_back(i)
+			}
+			let res = api.subscribeToRemoteStreams(std.string(streamRoomId),
+												   siv)
+			if let err = res.error.value{
+				throw PESStreamsError.failedSubscribingToRemoteStreams(err)
+			}
 		}
 	}
 	
@@ -434,16 +448,18 @@ public class StreamApi: @unchecked Sendable{
 	//MARK: - Tracks
 	public func addTrack(
 		_ track: RTCVideoTrack,
-		toRoomSession roomId:String
+		toRoomSession roomId:String,
+		withCryptorObserver observer: PMXFrameCryptorObserver? = nil
 	) throws -> Void {
-		try roomSessionManager.addVideoTrack(track, to: roomId)
+		try roomSessionManager.addVideoTrack(track, to: roomId,withCryptorObserver: observer)
 	}
 	
 	public func addTrack(
 		_ track: RTCAudioTrack,
-		toRoomSession roomId:String
+		toRoomSession roomId:String,
+		withCryptorObserver observer: PMXFrameCryptorObserver? = nil
 	) throws -> Void {
-		try roomSessionManager.addAudioTrack(track, to: roomId)
+		try roomSessionManager.addAudioTrack(track, to: roomId,withCryptorObserver: observer)
 	}
 	
 	
@@ -618,7 +634,7 @@ public class StreamApi: @unchecked Sendable{
 					throw PESStreamsError.failedAcceptingOfferOnReconfigure(err)
 				}
 				RTCLogEx(.info, "[PMX] called acceptOffer on Reonfigure")
-			}
+			},
 		)
 	}
 	

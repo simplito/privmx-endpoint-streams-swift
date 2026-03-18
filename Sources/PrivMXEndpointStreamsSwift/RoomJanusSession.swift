@@ -9,7 +9,6 @@
 // limitations under the License.
 //
 
-//#if Streams
 import WebRTC
 import PrivMXEndpointSwiftNative
 import PrivMXEndpointSwift
@@ -40,7 +39,8 @@ class RoomJanusSession{
 	
 	private var _getPeerConnectionWithDelegate: (() -> (RTCPeerConnection?, PMXPeerConnectionDelegate))
 	
-	func getOrCreatePublisher(
+	@discardableResult
+	func createPublisher(
 	) throws -> JanusPublisher{
 		if nil == _pubJC{
 			var (pc,del) = _getPeerConnectionWithDelegate()
@@ -54,7 +54,7 @@ class RoomJanusSession{
 			}
 			del.setPeerConnectionStateChangedCallback({
 				_, state in
-				print("[pmx][pcObserver] Publisher changed state to: ",state)
+				RTCLogEx(.info,"[pmx][pcObserver] Publisher changed state to: \(state)")
 			})
 			del.currentKeys = keyStore.value
 			del.setOnAudioTrackCallback(defaultAudioTrackHandler)
@@ -66,7 +66,8 @@ class RoomJanusSession{
 		return _pubJC!.value
 	}
 	
-	func getOrCreateSubscriber(
+	@discardableResult
+	func createSubscriber(
 	) throws -> JanusSubscriber {
 		if nil == _subJC{
 			var (pc,del) = _getPeerConnectionWithDelegate()
@@ -80,7 +81,7 @@ class RoomJanusSession{
 			}
 			del.setPeerConnectionStateChangedCallback({
 				_, state in
-				print("[pmx][pcObserver] Publisher changed state to: ",state)
+				RTCLogEx(.error,"[pmx][pcObserver] Publisher changed state to: \(state)")
 			})
 			_subJC = MutexGuarded(JanusSubscriber(
 				peerConnection: pc,
