@@ -16,7 +16,7 @@ This repository contains the Streams Module for [PrivMX Endpoint Swift](https://
 
 ## Modules
 
-PrivMX Endpoint Streams Swift is an extension of [`Privmx Endpoint Swift`](https://github.com/simplito/privmx-endpoint-swift). It additionaly depends on WebRTC library and manages WebRTC connection and media server sessions.
+PrivMX Endpoint Streams Swift is an extension of [`Privmx Endpoint Swift`](https://github.com/simplito/privmx-endpoint-swift). It additionally depends on WebRTC library and manages WebRTC connection and media server sessions.
 
 This package implements:
 
@@ -27,7 +27,7 @@ This package implements:
 5. Classes to simplify reading/writing to files using byte arrays and Swift [`FileHandle`](https://developer.apple.com/documentation/foundation/filehandle).
 
 
-## Dependency setup
+## Dependency Setup
 
 To use this package, add it as a dependency in your Xcode project or in your `Package.swift` file.
 
@@ -55,7 +55,7 @@ To add it directly to a Swift package, include this line in the `dependencies` a
 For more details on PrivMX Platform, including setup guides and API reference, visit [PrivMX documentation](https://docs.privmx.dev).
 
 
-## License information
+## License Information
 
 **PrivMX Endpoint Streams Swift**
 Copyright © 2026 Simplito sp. z o.o.
