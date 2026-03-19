@@ -47,6 +47,26 @@ public class StreamApi: @unchecked Sendable{
 		)
 		return sa
 	}
+
+	/// Creates an instance of `StreamApi` from a `privmx.NativeStreamApiLowWrapper` instance.
+	///
+	/// This is intended to be used with PrivMXEndpointSwiftExtra
+	///
+	/// - Parameter streamApiLow: the instance of privmx.NativeStreamApiLowWrapper, It's meant to be used with the PrivMXEndpointSwiftExtra package.
+	///
+	/// - Throws: if instantiating `StreamApi` fails.
+	///
+	/// - Returns: an instance of `StreamApi`.
+	public static func create(
+		from streamApiLow: privmx.NativeStreamApiLowWrapper
+	) throws -> StreamApi{
+		var sa = StreamApi(
+			api: streamApiLow
+		)
+		try sa.bindRoomSessionManger(
+		)
+		return sa
+	}
 	
 	// MARK: - Rooms
 	
