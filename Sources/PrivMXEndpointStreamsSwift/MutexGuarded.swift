@@ -11,7 +11,8 @@
 
 import os.lock
 
-public final class MutexGuarded<T>:Sendable{
+/// Wrapper that uses `OSAllocatedUnfairLock` on setters and getters.
+final class MutexGuarded<T>:Sendable{
 	init(_ value: T) {
 		self._value = value
 	}
