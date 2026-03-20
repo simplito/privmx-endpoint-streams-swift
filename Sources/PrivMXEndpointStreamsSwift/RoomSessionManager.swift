@@ -14,7 +14,7 @@ import PrivMXEndpointSwiftNative
 import WebRTC
 import Foundation
 
-public final class RoomSessionManager: Sendable{
+final class RoomSessionManager: Sendable{
 	
 	private let getTurnCredentials: @Sendable () throws -> [privmx.endpoint.stream.TurnCredentials]
 	nonisolated(unsafe) var onAudioTrack: ((String,RTCAudioTrack) -> Void)?
@@ -136,10 +136,10 @@ public final class RoomSessionManager: Sendable{
 	
 	func addVideoTrack(
 		_ track: RTCVideoTrack,
-		to roomId: String,
+		to streamHandle: privmx.endpoint.stream.StreamHandle,
 		withCryptorObserver observer: PMXFrameCryptorObserver? = nil
 	) throws -> Void {
-		guard let session = roomSessions[roomId]
+		guard let roomId = roomIdsForHandles[streamHandle], let session = roomSessions[roomId]
 		else {
 			throw PESStreamsError.failedAddingTrack(
 				.init(
@@ -195,10 +195,10 @@ public final class RoomSessionManager: Sendable{
 	
 	func addAudioTrack(
 		_ track: RTCAudioTrack,
-		to roomId: String,
+		to streamHandle: privmx.endpoint.stream.StreamHandle,
 		withCryptorObserver observer: PMXFrameCryptorObserver? = nil
 	) throws -> Void {
-		guard let session = roomSessions[roomId]
+		guard let roomId = roomIdsForHandles[streamHandle],let session = roomSessions[roomId]
 		else {
 			throw PESStreamsError.failedAddingTrack(
 				.init(
@@ -435,13 +435,14 @@ public final class RoomSessionManager: Sendable{
 					if let jc = try this.publisher{
 						let pc = jc.peerConnection
 						do{
+							RTCLogEx(.info, "[pmx][state]\(pc.iceConnectionState)")
 							let res = try await pc.offer(for: RTCMediaConstraints(mandatoryConstraints: [:], optionalConstraints: [:]))
 							result = privmx.StringWithError(
 								result: std.string(res.sdp),
 								isvalid: true,
 								errname: "",
 								errwhat: "")
-							RTCLogEx(.info,"create offer set loc desc")
+							RTCLogEx(.info,"[pmx]create offer set loc desc")
 							try await pc.setLocalDescription(res)
 							done=true
 						} catch let err{

@@ -17,16 +17,18 @@ import WebRTC
 import ScreenCaptureKit
 #endif
 public class StreamApi: @unchecked Sendable{
-	public var roomSessionManager: RoomSessionManager!
+	var roomSessionManager: RoomSessionManager!
 	
-	/// Creates the API instance
+	/// Creates an instance of `StreamApi`.
 	///
-	/// - Parameter connection:
-	/// - Parameter eventApi:
+	/// Note that EventApi passed to this method needs to be made from the same Connection.
 	///
-	/// - Throws:
+	/// - Parameter connection: instance of `Connection`.
+	/// - Parameter eventApi: instance of `EventApi`, made from the same `Connection`.
 	///
-	/// - Returns:
+	/// - Throws: if instantiating `StreamApi` fails
+	///
+	/// - Returns: an instance of `StreamApi`
 	public static func create(
 		connection: Connection,
 		eventApi: inout EventApi,
@@ -50,18 +52,18 @@ public class StreamApi: @unchecked Sendable{
 	
 	// MARK: - Rooms
 	
-	/// Creates a StreamRoom on the Bridge
+	/// Creates a new Stream Room in given Context.
 	///
-	/// - Parameter contextId:
-	/// - Parameter users:
-	/// - Parameter managers:
-	/// - Parameter publicMeta:
-	/// - Parameter privateMeta:
-	/// - Parameter policies:
+	/// - Parameter contextId: ID of the Context to create the Stream Room in.
+	/// - Parameter users: array of `UserWithPubKey` objects that indicate who will have access to the Stream Room.
+	/// - Parameter managers: array of `UserWithPubKey` objects that indicate who will have access and management rights to the Stream Room.
+	/// - Parameter publicMeta: public metadata of the Stream Room that won't be encrypted.
+	/// - Parameter privateMeta: private metadata of the Stream Room that will be encrypted.
+	/// - Parameter policies: the policies of the Stream Room (pass `nil` to use defaults).
 	///
-	/// - Throws:
+	/// - Throws: when the operation fails.
 	///
-	/// - Returns: StreamRoomId
+	/// - Returns: Id of the created Stream Room.
 	public func createStreamRoom(
 		in contextId: String,
 		for users: [privmx.endpoint.core.UserWithPubKey],
@@ -108,7 +110,21 @@ public class StreamApi: @unchecked Sendable{
 		return String(result)
 	}
 	
-	
+	/// Updates a Stream Room by replacing its values with new ones.
+	///
+	/// - Parameter streamRoomId: ID of the Stream Room to update.
+	/// - Parameter users: array of `UserWithPubKey` objects that indicate who will have access to the Stream Room.
+	/// - Parameter managers: array of `UserWithPubKey` objects that indicate who will have access and management rights to the Stream Room.
+	/// - Parameter publicMeta: public metadata of the Stream Room that won't be encrypted.
+	/// - Parameter privateMeta: private metadata of the Stream Room that will be encrypted.
+	/// - Parameter version: current version of the Stream Room to be updated.
+	/// - Parameter force: forcibly update the Stream Room by bypassing the version check.
+	/// - Parameter forceGenerateNewKey: force regenerating a new key for the Stream Room.
+	/// - Parameter policies: the policies of the Stream Room (pass `nil` to use defaults).
+	///
+	/// - Throws: when the operation fails.
+	///
+	/// - Returns: Id of the created Stream Room.
 	public func updateStreamRoom(
 		_ streamRoomId: String,
 		replacingUsers users: [privmx.endpoint.core.UserWithPubKey],
@@ -152,7 +168,14 @@ public class StreamApi: @unchecked Sendable{
 		}
 	}
 	
-	
+	/// Gets a list of Stream Rooms in given Context.
+	///
+	/// - Parameter contextId: Id of the Context to list the Stream Rooms from.
+	/// - Parameter query: object holding the parameters of the list query.
+	///
+	/// - Throws: When the operation fails.
+	///
+	/// - Returns: an object containing the results of the query.
 	public func listStreamRooms(
 		from contextId: String,
 		basedOn query: privmx.endpoint.core.PagingQuery
@@ -173,6 +196,12 @@ public class StreamApi: @unchecked Sendable{
 	}
 	
 	/// Gets a single StreamRoom by it's ID
+	///
+	/// - Parameter streamRoomId: ID of the Stream to be retrieved.
+	///
+	/// - Throws: when the operation fails.
+	///
+	/// - Returns: a `StreamRoom` object.
 	public func getStreamRoom(
 		_ streamRoomId: String
 	) throws -> privmx.endpoint.stream.StreamRoom {
@@ -189,6 +218,11 @@ public class StreamApi: @unchecked Sendable{
 		return result
 	}
 	
+	/// Deletes a StreamRoom.
+	///
+	/// - Parameter streamRoomId: Id of the Stream Room to be deleted.
+	///
+	/// - Throws: when the operation fails.
 	public func deleteStreamRoom(
 		_ streamRoomId: String
 	) throws -> Void {
@@ -198,10 +232,19 @@ public class StreamApi: @unchecked Sendable{
 		}
 	}
 	
+	/// Joins a Stream Room.
+	///
+	/// This is required before any methods involving Streams, such as creating, publishing or subscribing to remote Streams in the Room.
+	///
+	/// - Parameter streamRoomId: Id of the Stream Room to join.
+	/// - Parameter audioTrackHandler: the default handler that will be used for incoming Audio Tracks.
+	/// - Parameter videoTrackHandler: the default handler that will be used for incoming Video Tracks.
+	///
+	/// - Throws: when the operation fails.
 	public func joinStreamRoom(
 		_ streamRoomId: String,
 		audioTrackHandler: ((_ streamId:String,_ track:RTCAudioTrack) -> Void)?,
-		videoTrackHandler: ((_ streamId:String,_ track:RTCVideoTrack) -> Void)?,
+		videoTrackHandler: ((_ streamId:String,_ track:RTCVideoTrack) -> Void)?
 	) throws -> Void {
 		var session = try roomSessionManager.addRoomSessionFor(streamRoomId)
 		guard let instance = session.webRTCInstance
@@ -222,11 +265,13 @@ public class StreamApi: @unchecked Sendable{
 		}
 		roomSessionManager.setAudioStreamsHandler(audioTrackHandler)
 		roomSessionManager.setVideoStreamsHandler(videoTrackHandler)
-		session.subscriber?.peerConnectionDelegate.setOnAudioTrackCallback(audioTrackHandler)
-		session.subscriber?.peerConnectionDelegate.setOnVideoTrackCallback(videoTrackHandler)
 	}
 	
-	
+	/// Leaves the Stream Room and removes associated session.
+	///
+	/// - Parameter roomId: ID of the room to leave.
+	///
+	/// - Throws: if the operation fails.
 	public func leaveStreamRoom(
 		_ roomId: String
 	) throws -> Void {
@@ -244,10 +289,31 @@ public class StreamApi: @unchecked Sendable{
 	}
 	
 	// MARK: - STREAMS
+	
+	/// Creates a local Stream.
+	///
+	/// This also creates a RTCPeerConnection for publishing.
+	///  Note that `joinStreamRoom(_:)` must have been called before calling this method.
+	///
+	/// - Parameter streamRoomId: ID of the Stream Room in which to create a Stream.
+	/// - Parameter onIceConnectionStateChanged: optional callback for reacting to changes in the Ice Connection state.
+	/// - Parameter onPeerConnectionStateChanged: optional callback for reacting to changes in the Peer Connection state.
+	/// - Throws: if the operation failed
+	///
+	/// - Returns: a handle to the local Stream.
 	public func createStreamIn(
-		_ streamRoomId: String
+		_ streamRoomId: String,
+		onIceConnectionStateChangedCallback:(@Sendable (RTCPeerConnection,RTCIceConnectionState)->Void)? = nil,
+		onPeerConnectionStateChangedCallback:(@Sendable (RTCPeerConnection,RTCPeerConnectionState)->Void)? = nil
 	) throws -> privmx.endpoint.stream.StreamHandle {
-		_ = try roomSessionManager.roomSessions[streamRoomId]?.createPublisher()
+		guard var publisher = try roomSessionManager.roomSessions[streamRoomId]?.createPublisher()
+		else {
+			throw PESStreamsError.failedCreatingStream(.init(name: "Missing session", message: "", description: "There is no session for this Room."))
+		}
+		publisher.setconnectionStateChangedCallbacks(
+			onIceConnectionStateChangedCallback: onIceConnectionStateChangedCallback,
+			onPeerConnectionStateChangedCallback: onPeerConnectionStateChangedCallback
+		)
 		let res = api.createStream(std.string(streamRoomId))
 		guard res.error.value == nil else {
 			throw PESStreamsError.failedCreatingStream(res.error.value!)
@@ -262,6 +328,13 @@ public class StreamApi: @unchecked Sendable{
 		return streamHandle
 	}
 	
+	/// Updates the local Stream after it has been published,
+	///
+	/// - Parameter handle: Handle of the Stream to be updated.
+	///
+	/// - Throws: when the operation fails.
+	///
+	/// - Returns: result of the update operation.
 	public func updateStream(
 		_ handle: privmx.endpoint.stream.StreamHandle
 	) throws -> privmx.endpoint.stream.StreamPublishResult {
@@ -280,10 +353,15 @@ public class StreamApi: @unchecked Sendable{
 		return result
 	}
 	
+	/// Publishes the local Stream —with currently staged tracks — to the server.
+	///
+	/// - Parameter streamHandle: handle of the Stream to be published.
+	///
+	/// - Throws: when the operation fails.
+	///
+	/// - Returns: the result of the publish operation.
 	public func publishStream(
-		_ streamHandle: privmx.endpoint.stream.StreamHandle,
-		onIceConnectionStateChangedCallback:(@Sendable (RTCPeerConnection,RTCIceConnectionState)->Void)? = nil,
-		onPeerConnectionStateChangedCallback:(@Sendable (RTCPeerConnection,RTCPeerConnectionState)->Void)? = nil
+		_ streamHandle: privmx.endpoint.stream.StreamHandle
 	) throws -> privmx.endpoint.stream.StreamPublishResult {
 		
 		guard let sh = roomSessionManager.roomIdsForHandles[streamHandle]
@@ -305,12 +383,10 @@ public class StreamApi: @unchecked Sendable{
 				)
 			)
 		}
-		var publisher = try session.createPublisher()
-		
-		publisher.setconnectionStateChangedCallbacks(
-			onIceConnectionStateChangedCallback: onIceConnectionStateChangedCallback,
-			onPeerConnectionStateChangedCallback: onPeerConnectionStateChangedCallback
-		)
+		guard var publisher = session.publisher
+		else {
+			throw PESStreamsError.failedPublishingStream(.init(name: "Missing publisher", message: "", description: "The Publisher for this room doe not exist."))
+		}
 		
 		let res = api.publishStream(streamHandle)
 		
@@ -319,15 +395,22 @@ public class StreamApi: @unchecked Sendable{
 		}
 		guard let result = res.result.value
 		else {
-			throw PESStreamsError.failedPublishingStream(.init(name: "Missing result", message: "", description: ""))
+			throw PESStreamsError.failedPublishingStream(.init(name: "Missing publish result", message: "", description: ""))
 		}
 		
 		return result
 	}
 	
+	/// Gets a list of currently published Streams in given Stream Room.
+	///
+	/// - Parameter contextId: Id of the Stream Rooms from which to list the Streams.
+	///
+	/// - Throws: When the operation fails.
+	///
+	/// - Returns: a list of `StreamInfo` structs describing currently published streams.
 	public func listStreams(
 		in streamRoomId: String
-	) throws -> privmx.StreamInfoVector {
+	) throws -> [privmx.endpoint.stream.StreamInfo] {
 		let res = api.listStreams(std.string(streamRoomId))
 		guard res.error.value == nil else {
 			throw PESStreamsError.failedListingStreams(res.error.value!)
@@ -338,11 +421,16 @@ public class StreamApi: @unchecked Sendable{
 			err.description = "Unexpectedly recived nil result"
 			throw PESStreamsError.failedListingStreams(err)
 		}
-		return result
+		return result.map({$0})
 	}
 	
+	/// Stops publishing the Stream.
+	///
+	/// - Parameter streamHandle: handle of the Stream to be unpublished.
+	///
+	/// - Throws: when the operation fails.
 	public func unpublishStream(
-		streamHandle: privmx.endpoint.stream.StreamHandle
+		_ streamHandle: privmx.endpoint.stream.StreamHandle
 	) throws -> Void {
 		if let roomId = roomSessionManager.roomIdsForHandles[streamHandle]{
 			roomSessionManager.updateTurnCredentialsFor(roomId)
@@ -353,11 +441,25 @@ public class StreamApi: @unchecked Sendable{
 		}
 	}
 	
+	/// Subscribes to selected remote Streams in the Stream Room.
+	/// Optionally the specific Tracks to be subscribed to can be provided.
+	/// This method creates the `RTCPeerConnection` for receiveing.
+	///
+	/// - Parameter streamRoomId: ID of the StreamRoom from which to receive Streams.
+	/// - Parameter subscriptions: list of Stream subscription objects defining which streams or tracks to subscribe to.
+	/// - Parameter onIceConnectionStateChanged: optional callback for reacting to changes in the Ice Connection state.
+	/// - Parameter onPeerConnectionStateChanged: optional callback for reacting to changes in the Peer Connection state.
+	/// - Parameter audioTrackHandler: optional handler that will be used for incoming Audio Tracks instead of the default one from now on.
+	/// - Parameter videoTrackHandler: optional handler that will be used for incoming Video Tracks instead of the default one from now on.
+	///
+	/// - Throws: when the operation fails.
 	public func subscribeToRemoteStreams(
 		in streamRoomId: String,
 		subscriptions: [privmx.endpoint.stream.StreamSubscription],
 		onIceConnectionStateChanged: (@Sendable (RTCPeerConnection, RTCIceConnectionState) -> Void)? = nil,
-		onPeerConnectionStateChanged: (@Sendable (RTCPeerConnection, RTCPeerConnectionState) -> Void)? = nil
+		onPeerConnectionStateChanged: (@Sendable (RTCPeerConnection, RTCPeerConnectionState) -> Void)? = nil,
+		audioTrackHandler: ((_ streamId:String,_ track:RTCAudioTrack) -> Void)? = nil,
+		videoTrackHandler: ((_ streamId:String,_ track:RTCVideoTrack) -> Void)? = nil
 	) throws -> Void {
 		if let session = try roomSessionManager.roomSessions[streamRoomId] {
 			if nil == session.subscriber{
@@ -366,6 +468,13 @@ public class StreamApi: @unchecked Sendable{
 					onIceConnectionStateChangedCallback: onIceConnectionStateChanged,
 					onPeerConnectionStateChangedCallback: onPeerConnectionStateChanged)
 			}
+			if let audioTrackHandler {
+				session.subscriber?.peerConnectionDelegate.setOnAudioTrackCallback(audioTrackHandler)
+			}
+			if let videoTrackHandler {
+				session.subscriber?.peerConnectionDelegate.setOnVideoTrackCallback(videoTrackHandler)
+			}
+			
 			roomSessionManager.updateTurnCredentialsFor(streamRoomId)
 			var siv = privmx.StreamSubscriptiopnsVector()
 			siv.reserve(subscriptions.count)
@@ -380,6 +489,13 @@ public class StreamApi: @unchecked Sendable{
 		}
 	}
 	
+	/// Modifies the current remote Streams subscriptions.
+	///
+	/// - Parameter streamRoomId: Id of the Stream Room for which the subscriptions should be changed.
+	/// - Parameter subscriptionsToAdd: a list of objects describing the subscriptions to be added.
+	/// - Parameter subscriptionsToRemove: a list of objects describing the subscriptions to be removed.
+	///
+	/// - Throws: when the operation fails.
 	public func modifyRemoteStreamsSubscriptions(
 		streamRoomId: String,
 		subscriptionsToAdd: [privmx.endpoint.stream.StreamSubscription],
@@ -408,6 +524,12 @@ public class StreamApi: @unchecked Sendable{
 		}
 	}
 	
+	/// Unsubscribes from the specified Streams in a Stream Room.
+	///
+	/// - Parameter streamRoomId: Id of the Stream Room for which the subscriptions should be removed.
+	/// - Parameter subscriptionsToRemove: a list of objects describing the subscriptions to be removed.
+	///
+	/// - Throws: when the operation fails.
 	public func unsubscribeFromRemoteStreams(
 		_ subscriptionsToRemove: [privmx.endpoint.stream.StreamSubscription],
 		in streamRoomId:String
@@ -424,11 +546,18 @@ public class StreamApi: @unchecked Sendable{
 		}
 	}
 	
+	/// Lists the `AVCaptureDevice`s that support capturing video.
+	///
+	/// - Returns: List of `AVCaptureDevices`
 	public func listCameras(
 	) -> [AVCaptureDevice]{
 		RTCCameraVideoCapturer.captureDevices()
 	}
 	
+	/// Configures whether to drop encrypted frames that cannot be decrypted.
+	///
+	/// - Parameter enable: whether the frames should or should not be dropped.
+	/// - Parameter roomId: ID of the Stream Room for which this should apply.
 	public func dropBrokenFrames(
 		_ enable: Bool,
 		in roomId:String
@@ -446,70 +575,94 @@ public class StreamApi: @unchecked Sendable{
 	}
 	
 	//MARK: - Tracks
+	
+	/// Adds a Video Track to the local Stream.
+	///
+	/// Optionally a `PMXFrameCryptorObserver` implementation can be provided.
+	///
+	/// - Parameter track: a `RTCVideoTrack` that will be added to room.
+	/// - Parameter streamHandle: handle of the Stream to which the track will be added.
+	/// - Parameter observer: an object implementing the `PMXFrameCryptorObserver` protocol.
+	///
+	/// - Throws: when the operation fails.
 	public func addTrack(
 		_ track: RTCVideoTrack,
-		toRoomSession roomId:String,
-		withCryptorObserver observer: PMXFrameCryptorObserver? = nil
+		toStream streamHandle:privmx.endpoint.stream.StreamHandle,
+		withCryptorObserver observer: (any PMXFrameCryptorObserver)? = nil
 	) throws -> Void {
-		try roomSessionManager.addVideoTrack(track, to: roomId,withCryptorObserver: observer)
+		try roomSessionManager.addVideoTrack(track, to: streamHandle,withCryptorObserver: observer)
 	}
 	
+	/// Adds an Audio Track to the local Stream.
+	///
+	/// Optionally a `PMXFrameCryptorObserver` implementation can be provided.
+	///
+	/// - Parameter track: a `RTCAudioTrack` that will be added to room.
+	/// - Parameter streamHandle: handle of the Stream to which the track will be added.
+	/// - Parameter observer: an object implementing the `PMXFrameCryptorObserver` protocol.
+	///
+	/// - Throws: when the operation fails.
 	public func addTrack(
 		_ track: RTCAudioTrack,
-		toRoomSession roomId:String,
-		withCryptorObserver observer: PMXFrameCryptorObserver? = nil
+		toStream streamHandle:privmx.endpoint.stream.StreamHandle,
+		withCryptorObserver observer: (any PMXFrameCryptorObserver)? = nil
 	) throws -> Void {
-		try roomSessionManager.addAudioTrack(track, to: roomId,withCryptorObserver: observer)
+		try roomSessionManager.addAudioTrack(track, to: streamHandle,withCryptorObserver: observer)
 	}
 	
 	
 	
-#if os(macOS)
+	/// Creates a local `RTCVideoTrack` and a `RTCVideoSource`.
+	///
+	/// - Parameter id: Id for the newly created local Track.
+	/// - Parameter forScreenCast: whether the Source should be prepared for screen cast.
+	///
+	/// - Returns: a tuple containing the created Track and Source.
 	public func createVideoTrackAndSource(
 		id: String,
 		forScreenCast: Bool = false
-	) -> (track:RTCVideoTrack, source: RTCVideoSource) {
+	) -> (track: RTCVideoTrack, source: RTCVideoSource) {
 		var src = roomSessionManager.peerConnectionFactory.videoSource(forScreenCast: forScreenCast)
 		var trk = roomSessionManager.peerConnectionFactory.videoTrack(with: src, trackId: id)
 		return (trk,src)
 	}
-#else
-	public func createVideoTrackAndSource(
-		id: String
-	) -> (track:RTCVideoTrack, source: RTCVideoSource) {
-		var src = roomSessionManager.peerConnectionFactory.videoSource(forScreenCast: false)
-		var trk = roomSessionManager.peerConnectionFactory.videoTrack(with: src, trackId: id)
-		return (trk,src)
-	}
-#endif
 	
+	/// Creates a local `RTCAudioTrack` and a `RTCAudioSource`.
+	///
+	/// - Parameter id: Id for the newly created local Track.
+	///
+	/// - Returns: a tuple containing the created Track and Source.
 	public func createAudioTrackAndSource(
 		id: String
-	) -> (track:RTCAudioTrack, source: RTCAudioSource) {
+	) -> (track: RTCAudioTrack, source: RTCAudioSource) {
 		var src = roomSessionManager.peerConnectionFactory.audioSource(with: nil)
-		
 		var trk = roomSessionManager.peerConnectionFactory.audioTrack(with: src, trackId: id)
 		return (trk,src)
 	}
-	
-	@available(*,unavailable)
-	public func createRawTrack(
-		id: String
-	) -> Void {
-		
-	}
-	
-	
 
+	
+	/// Removes a Track from the local Stream,
+	///
+	/// - Parameter track: `RTCVideoTrack` to be removed.
+	/// - Parameter handle: from which Stream the Track should be removed.
+	///
+	/// - Throws: when the operation fails.
 	public func removeTrack(
 		_ track: RTCVideoTrack,
-		fromStreamWithHandle handle: privmx.endpoint.stream.StreamHandle
+		fromStream handle: privmx.endpoint.stream.StreamHandle
 	) throws -> Void {
 		try roomSessionManager.removeVideoTrack(track, from: handle)
 	}
+	
+	/// Removes a Track from the local Stream,
+	///
+	/// - Parameter track: `RTCAudioTrack` to be removed.
+	/// - Parameter handle: from which Stream the Track should be removed.
+	///
+	/// - Throws: when the operation fails.
 	public func removeTrack(
 		_ track: RTCAudioTrack,
-		fromStreamWithHandle handle: privmx.endpoint.stream.StreamHandle
+		fromStream handle: privmx.endpoint.stream.StreamHandle
 	) throws -> Void {
 		try roomSessionManager.removeAudioTrack(track, from: handle)
 	}
@@ -539,7 +692,7 @@ public class StreamApi: @unchecked Sendable{
 		return result
 	}
 	
-	/// Unsubscribe from events for the given subscriptionId.
+	/// Unsubscribes from events for the given subscriptionId.
 	///
 	/// - Parameter subscriptionIds: list of subscriptionId
 	///
@@ -580,16 +733,40 @@ public class StreamApi: @unchecked Sendable{
 		return result
 	}
 	
-	public func setVideoStreamsHandler(
+	/// Sets the handler for new incoming `RTCVideoTracks`.
+	///
+	/// - Parameter roomId: Id of the Room for which the handler should be set.
+	/// - Parameter handler: callback taking the `StreamID` and an incoming `RTCVideoTrack`
+	public func setVideoStreamsHandlerFor(
+		_ roomId: String,
 		_ handler: ((String,RTCVideoTrack) -> Void)?
-	) -> Void {
-		roomSessionManager.setVideoStreamsHandler(handler)
+	) throws -> Void {
+		guard var session = roomSessionManager.roomSessions[roomId]
+		else {
+			throw PESStreamsError.failedSettingTrackHandler(.init(
+				name: "No session for Room",
+				message: "", description: ""))
+		}
+		session.subscriber?.peerConnectionDelegate.onVideoTrack = handler
 	}
+	
+	/// Sets the handler for new incoming `RTCAudioTrack`s.
+	///
+	/// - Parameter roomId: Id of the Room for which the handler should be set.
+	/// - Parameter handler: callback taking the `StreamID` and an incoming `RTCAudioTrack`
 	public func setAudioStreamsHandler(
+		_ roomId: String,
 		_ handler: ((String,RTCAudioTrack) -> Void)?
-	) -> Void {
-		roomSessionManager.setAudioStreamsHandler(handler)
+	) throws -> Void {
+		guard var session = roomSessionManager.roomSessions[roomId]
+		else {
+			throw PESStreamsError.failedSettingTrackHandler(.init(
+				name: "No session for Room",
+				message: "", description: ""))
+		}
+		session.subscriber?.peerConnectionDelegate.onAudioTrack = handler
 	}
+	
 	
 	//MARK: - PRIVATE
 	private var api: privmx.NativeStreamApiLowWrapper
@@ -598,6 +775,7 @@ public class StreamApi: @unchecked Sendable{
 	) {
 		self.api = api
 	}
+	
 	private func bindRoomSessionManger(
 	) throws -> Void {
 		self.roomSessionManager = RoomSessionManager.create(
@@ -611,7 +789,10 @@ public class StreamApi: @unchecked Sendable{
 				}
 				guard let resv = res.result.value
 				else {
-					throw PESStreamsError.failedGettingTurnCredentials(.init(name: "Value Error", message: "Unexpectedly received nil", description: "Could not get Turn Credentials"))
+					throw PESStreamsError.failedGettingTurnCredentials(.init(
+						name: "Value Error",
+						message: "Unexpectedly received nil",
+						description: "Could not get Turn Credentials"))
 				}
 				var result = [privmx.endpoint.stream.TurnCredentials]()
 				resv.forEach({
