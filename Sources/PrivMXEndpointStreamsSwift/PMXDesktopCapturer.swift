@@ -43,7 +43,7 @@ public final class PMXDesktopCapturer: RTCVideoCapturer, @unchecked Sendable{
 	nonisolated(unsafe) private let stream: SCStream
 	let output = StreamOutput()
 	
-	/// Initialises thw Desktop Capturer with a `RTCVideoCapturerDelegate`, `SCContentFilter` and `SCStreamConfiguration`.
+	/// Initialises the Desktop Capturer with a `RTCVideoCapturerDelegate`, `SCContentFilter` and `SCStreamConfiguration`.
 	///
 	/// - Parameter videoDelegate: an object implementing the `RTCVideoCapturerDelegate`, this will usualy be an instance of RTCVideoSource.
 	/// - Parameter filter: SCContentFilter describing what part of the screen will be captured.

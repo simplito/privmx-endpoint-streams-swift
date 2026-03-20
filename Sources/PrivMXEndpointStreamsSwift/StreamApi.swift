@@ -110,7 +110,7 @@ public class StreamApi: @unchecked Sendable{
 		return String(result)
 	}
 	
-	/// Updates a  Stream Room by replacing it's values with new ones.
+	/// Updates a Stream Room by replacing its values with new ones.
 	///
 	/// - Parameter streamRoomId: ID of the Stream Room to update.
 	/// - Parameter users: array of `UserWithPubKey` objects that indicate who will have access to the Stream Room.
@@ -220,7 +220,7 @@ public class StreamApi: @unchecked Sendable{
 	
 	/// Deletes a StreamRoom.
 	///
-	/// - Parameter streamRoomId: Id of teh Stream Room to be deleted.
+	/// - Parameter streamRoomId: Id of the Stream Room to be deleted.
 	///
 	/// - Throws: when the operation fails.
 	public func deleteStreamRoom(
@@ -442,7 +442,7 @@ public class StreamApi: @unchecked Sendable{
 	}
 	
 	/// Subscribes to selected remote Streams in the Stream Room.
-	/// Optionally the specific Tracks to be sucscribed to can be provided.
+	/// Optionally the specific Tracks to be subscribed to can be provided.
 	/// This method creates the `RTCPeerConnection` for receiveing.
 	///
 	/// - Parameter streamRoomId: ID of the StreamRoom from which to receive Streams.
@@ -581,7 +581,7 @@ public class StreamApi: @unchecked Sendable{
 	/// Optionally a `PMXFrameCryptorObserver` implementation can be provided.
 	///
 	/// - Parameter track: a `RTCVideoTrack` that will be added to room.
-	/// - Parameter streamHandle: handle of the stream to whichthe track will be added.
+	/// - Parameter streamHandle: handle of the Stream to which the track will be added.
 	/// - Parameter observer: an object implementing the `PMXFrameCryptorObserver` protocol.
 	///
 	/// - Throws: when the operation fails.
@@ -593,12 +593,12 @@ public class StreamApi: @unchecked Sendable{
 		try roomSessionManager.addVideoTrack(track, to: streamHandle,withCryptorObserver: observer)
 	}
 	
-	/// Adds a Audio Track to the local Stream.
+	/// Adds an Audio Track to the local Stream.
 	///
 	/// Optionally a `PMXFrameCryptorObserver` implementation can be provided.
 	///
 	/// - Parameter track: a `RTCAudioTrack` that will be added to room.
-	/// - Parameter streamHandle: handle of the stream to whichthe track will be added.
+	/// - Parameter streamHandle: handle of the Stream to which the track will be added.
 	/// - Parameter observer: an object implementing the `PMXFrameCryptorObserver` protocol.
 	///
 	/// - Throws: when the operation fails.
@@ -644,7 +644,7 @@ public class StreamApi: @unchecked Sendable{
 	/// Removes a Track from the local Stream,
 	///
 	/// - Parameter track: `RTCVideoTrack` to be removed.
-	/// - Parameter handle: whether the Source should be prepared fofr screen cast.
+	/// - Parameter handle: from which Stream the Track should be removed.
 	///
 	/// - Throws: when the operation fails.
 	public func removeTrack(
@@ -657,12 +657,12 @@ public class StreamApi: @unchecked Sendable{
 	/// Removes a Track from the local Stream,
 	///
 	/// - Parameter track: `RTCAudioTrack` to be removed.
-	/// - Parameter handle: whether the Source should be prepared fofr screen cast.
+	/// - Parameter handle: from which Stream the Track should be removed.
 	///
 	/// - Throws: when the operation fails.
 	public func removeTrack(
 		_ track: RTCAudioTrack,
-		fromStreamWithHandle handle: privmx.endpoint.stream.StreamHandle
+		fromStream handle: privmx.endpoint.stream.StreamHandle
 	) throws -> Void {
 		try roomSessionManager.removeAudioTrack(track, from: handle)
 	}
@@ -735,7 +735,7 @@ public class StreamApi: @unchecked Sendable{
 	
 	/// Sets the handler for new incoming `RTCVideoTracks`.
 	///
-	/// - Parameter roomId: Id of the Room for which this
+	/// - Parameter roomId: Id of the Room for which the handler should be set.
 	/// - Parameter handler: callback taking the `StreamID` and an incoming `RTCVideoTrack`
 	public func setVideoStreamsHandlerFor(
 		_ roomId: String,
@@ -749,6 +749,11 @@ public class StreamApi: @unchecked Sendable{
 		}
 		session.subscriber?.peerConnectionDelegate.onVideoTrack = handler
 	}
+	
+	/// Sets the handler for new incoming `RTCAudioTrack`s.
+	///
+	/// - Parameter roomId: Id of the Room for which the handler should be set.
+	/// - Parameter handler: callback taking the `StreamID` and an incoming `RTCAudioTrack`
 	public func setAudioStreamsHandler(
 		_ roomId: String,
 		_ handler: ((String,RTCAudioTrack) -> Void)?
