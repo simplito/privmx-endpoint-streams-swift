@@ -330,6 +330,7 @@ public class StreamApi: @unchecked Sendable{
 		else {
 			throw PESStreamsError.failedCreatingStream(.init(name: "Missing session", message: "", description: "There is no session for this Room."))
 		}
+		roomSessionManager.setPublisherRenegCallbacks(streamRoomId)
 		publisher.setconnectionStateChangedCallbacks(
 			onIceConnectionStateChangedCallback: onIceConnectionStateChangedCallback,
 			onPeerConnectionStateChangedCallback: onPeerConnectionStateChangedCallback

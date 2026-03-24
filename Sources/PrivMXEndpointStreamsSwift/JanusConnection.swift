@@ -13,8 +13,10 @@ import Foundation
 import PrivMXEndpointSwiftNative
 import PrivMXEndpointSwift
 import WebRTC
+import os.lock
 
-public class JanusConnection: @unchecked Sendable{
+ class JanusConnection: @unchecked Sendable{
+	
 	var peerConnection : RTCPeerConnection
 	var peerConnectionDelegate: PMXPeerConnectionDelegate
 	var sessionId: Int64 = -1
@@ -47,10 +49,34 @@ public class JanusConnection: @unchecked Sendable{
 		peerConnectionDelegate.setPeerConnectionStateChangedCallback(onPeerConnectionStateChangedCallback)
 		peerConnectionDelegate.setIceConnectionStateChangedCallback(onIceConnectionStateChangedCallback)
 	}
-	
+	func close(){
+		peerConnection.close()
+		peerConnectionDelegate.cryptors = MutexGuarded([:])
+		peerConnectionDelegate.setPeerConnectionStateChangedCallback(nil)
+		peerConnectionDelegate.setOnAudioTrackCallback(nil)
+		peerConnectionDelegate.setOnVideoTrackCallback(nil)
+		peerConnectionDelegate.setIceConnectionStateChangedCallback(nil)
+		peerConnectionDelegate.setStreamAddedCallback(nil)
+		peerConnectionDelegate.setTracksAddedCallback(nil)
+		peerConnectionDelegate.setStreamRemovedCallback(nil)
+		peerConnectionDelegate.setTracksRemovedCallback(nil)
+		peerConnectionDelegate.setStartedReceivingCallback(nil)
+		peerConnectionDelegate.setStoppedReceivingCallback(nil)
+		peerConnectionDelegate.setShouldRenegotiateCallback(nil)
+		peerConnectionDelegate.setDataChannelOpenedCallback(nil)
+		peerConnectionDelegate.setIceCandidatesRemovedCallback(nil)
+		peerConnectionDelegate.setIceCandidateGeneratedCallback(nil)
+		peerConnectionDelegate.setLocalCandidateChangedCallback(nil)
+		peerConnectionDelegate.setIceCandidateErrorEventCallback(nil)
+		peerConnectionDelegate.setIceGatheringStateChangedCallback(nil)
+		peerConnectionDelegate.setConnectionSignalingStateChangedCallback(nil)
+		
+		
+		
+	}
 }
 
-public final class JanusPublisher:JanusConnection, @unchecked Sendable{
+final class JanusPublisher:JanusConnection, @unchecked Sendable{
 	var audioTracks: [String: AudioTrackInfo] = [:]
 	var videoTracks: [String: VideoTrackInfo] = [:]
 	
@@ -75,17 +101,24 @@ public final class JanusPublisher:JanusConnection, @unchecked Sendable{
 		
 		RTCLogEx(.info,"reconfigure type: \(type)")
 		var pc = self.peerConnection
-		
 		try await pc.setRemoteDescription(RTCSessionDescription(type: tp, sdp: String(sdp)))
 		
 		return privmx.endpoint.stream.SdpWithRoomModel(
 			roomId: std.string(roomId),
 			sdp: std.string(sdp),
 			type: std.string(type))
+			
+	}
+	
+	override func close(
+	){
+		audioTracks.removeAll()
+		videoTracks.removeAll()
+		super.close()
 	}
 }
 
-public final class JanusSubscriber:JanusConnection, @unchecked Sendable{
+final class JanusSubscriber:JanusConnection, @unchecked Sendable{
 	override func reconfigure(
 		sdp: String,
 		type: String,
