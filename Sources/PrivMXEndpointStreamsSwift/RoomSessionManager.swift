@@ -260,9 +260,11 @@ final class RoomSessionManager: Sendable{
 			throw PESStreamsError.failedRemovingTrack(.init(name: "No publisher found", message: "", description: ""))
 		}
 		if let sender = publisher.videoTracks[track.trackId]?.sender {
+			publisher.videoTracks[track.trackId] = nil
 			return publisher.peerConnection.removeTrack(sender)
+			
 		} else {
-			throw PESStreamsError.failedRemovingTrack(.init(name: "No sender for track", message: "", description: ""))
+			throw PESStreamsError.failedRemovingTrack(.init(name: "Could not find track in Stream", message: "", description: ""))
 		}
 	}
 	
@@ -275,6 +277,7 @@ final class RoomSessionManager: Sendable{
 			throw PESStreamsError.failedRemovingTrack(.init(name: "No publisher found", message: "", description: ""))
 		}
 		if let sender = publisher.audioTracks[track.trackId]?.sender {
+			publisher.audioTracks[track.trackId] = nil
 			return publisher.peerConnection.removeTrack(sender)
 		} else {
 			throw PESStreamsError.failedRemovingTrack(.init(name: "No sender for track", message: "", description: ""))
