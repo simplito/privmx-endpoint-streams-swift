@@ -165,7 +165,7 @@ final class RoomSessionManager: Sendable{
 		else {
 			throw PESStreamsError.failedAddingTrack(
 				.init(
-					name: "Couldn't create sender",
+					name: "Couldn't add Track to Stream",
 					message: "", description: ""
 				)
 			)
@@ -224,7 +224,7 @@ final class RoomSessionManager: Sendable{
 		else {
 			throw PESStreamsError.failedAddingTrack(
 				.init(
-					name: "Couldn't create sender",
+					name: "Couldn't add Track to Stream",
 					message: "", description: ""
 				)
 			)
@@ -257,7 +257,7 @@ final class RoomSessionManager: Sendable{
 	) throws -> Bool {
 		guard let rid = roomIdsForHandles[handle], let publisher = roomSessions[rid]?.publisher
 		else {
-			throw PESStreamsError.failedRemovingTrack(.init(name: "No publisher found", message: "", description: ""))
+			throw PESStreamsError.failedRemovingTrack(.init(name: "No session found", message: "", description: ""))
 		}
 		if let sender = publisher.videoTracks[track.trackId]?.sender {
 			publisher.videoTracks[track.trackId] = nil
@@ -274,13 +274,13 @@ final class RoomSessionManager: Sendable{
 	) throws -> Bool {
 		guard let rid = roomIdsForHandles[handle], let publisher = roomSessions[rid]?.publisher
 		else {
-			throw PESStreamsError.failedRemovingTrack(.init(name: "No publisher found", message: "", description: ""))
+			throw PESStreamsError.failedRemovingTrack(.init(name: "No session found", message: "", description: ""))
 		}
 		if let sender = publisher.audioTracks[track.trackId]?.sender {
 			publisher.audioTracks[track.trackId] = nil
 			return publisher.peerConnection.removeTrack(sender)
 		} else {
-			throw PESStreamsError.failedRemovingTrack(.init(name: "No sender for track", message: "", description: ""))
+			throw PESStreamsError.failedRemovingTrack(.init(name: "Could not find track in Stream", message: "", description: ""))
 		}
 		
 	}
