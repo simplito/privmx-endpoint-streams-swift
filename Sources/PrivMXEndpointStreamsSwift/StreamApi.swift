@@ -479,8 +479,10 @@ public class StreamApi: @unchecked Sendable{
 			var siv = privmx.StreamSubscriptiopnsVector()
 			siv.reserve(subscriptions.count)
 			for i in subscriptions{
+				print("[pmx][subscription] subscribing for ",i,terminator:" ")
 				siv.push_back(i)
 			}
+			print("streams")
 			let res = api.subscribeToRemoteStreams(std.string(streamRoomId),
 												   siv)
 			if let err = res.error.value{

@@ -16,6 +16,7 @@ import Foundation
 
 final class RoomSessionManager: Sendable{
 	
+	nonisolated(unsafe) let localAnalyzer : PMXAudioLevelAnalyzer
 	private let getTurnCredentials: @Sendable () throws -> [privmx.endpoint.stream.TurnCredentials]
 	nonisolated(unsafe) var onAudioTrack: ((String,RTCAudioTrack) -> Void)?
 	nonisolated(unsafe)var onVideoTrack: ((String,RTCVideoTrack) -> Void)?
@@ -36,15 +37,23 @@ final class RoomSessionManager: Sendable{
 		acceptOfferOnReconfigure: @escaping @Sendable (Int64,privmx.endpoint.stream.SdpWithTypeModel) throws -> Void,
 	) -> RoomSessionManager {
 		var encf = RTCDefaultVideoEncoderFactory()
-		
+		var analyzer = PMXAudioLevelAnalyzer()
 		encf.preferredCodec = .init(name: kRTCVp8CodecName)
 		
 		var mgr = RoomSessionManager(
+			audioLevelAnalyzer: analyzer,
 			onTrickle: onTrickle,
 			getTurnCredentials: getTurnCredentials,
 			peerConnectionFactory: RTCPeerConnectionFactory(
+				bypassVoiceProcessing: false,
 				encoderFactory: encf,
-			 decoderFactory: RTCDefaultVideoDecoderFactory()),
+				decoderFactory: RTCDefaultVideoDecoderFactory(),
+				audioProcessingModule: RTCDefaultAudioProcessingModule(
+					config: nil,
+					capturePostProcessingDelegate: analyzer,
+					renderPreProcessingDelegate: nil
+				)
+			),
 			onSetNewOfferOnReconfigure: setNewOfferOnReconfigure,
 			onAcceptOfferOnReconfigure: acceptOfferOnReconfigure,
 		)
@@ -174,7 +183,8 @@ final class RoomSessionManager: Sendable{
 		guard var cryptor = PMXFrameCryptorTransformer(
 			for: sender.sender,
 			   with: peerConnectionFactory,
-			pmxKeyStore: session.keyStore.value)
+			pmxKeyStore: session.keyStore.value,
+			audioLevelAnalyzer:PMXAudioLevelAnalyzer())
 		else {
 			throw PESStreamsError.failedAddingTrack(
 				.init(
@@ -198,6 +208,7 @@ final class RoomSessionManager: Sendable{
 		to streamHandle: privmx.endpoint.stream.StreamHandle,
 		withCryptorObserver observer: PMXFrameCryptorObserver? = nil
 	) throws -> Void {
+		localAnalyzer.enable(true)
 		guard let roomId = roomIdsForHandles[streamHandle],let session = roomSessions[roomId]
 		else {
 			throw PESStreamsError.failedAddingTrack(
@@ -229,11 +240,13 @@ final class RoomSessionManager: Sendable{
 				)
 			)
 		}
-		
+		//let analyzer = PMXAudioLevelAnalyzer()
+		//analyzer.enable(true)
 		guard var cryptor = PMXFrameCryptorTransformer(
 			for: sender.sender,
 			with: peerConnectionFactory,
-			pmxKeyStore: session.keyStore.value)
+			pmxKeyStore: session.keyStore.value,
+			audioLevelAnalyzer:localAnalyzer)
 		else {
 			throw PESStreamsError.failedAddingTrack(
 				.init(
@@ -248,7 +261,8 @@ final class RoomSessionManager: Sendable{
 		pub.audioTracks[track.trackId] = AudioTrackInfo(
 			track: track,
 			sender: sender.sender,
-			frameCryptor: cryptor)
+			frameCryptor: cryptor,
+		audioLevelAnalyzer: localAnalyzer)
 	}
 	
 	func removeVideoTrack(
@@ -316,7 +330,7 @@ final class RoomSessionManager: Sendable{
 					if t.value.kind == kRTCMediaStreamTrackKindVideo {
 						if let track = t.value as? RTCVideoTrack{
 							RTCLogEx(.info,"[PMX][Observer]Got an unprocessed Video Track")
-							that().onVideoTrack?(streamId, track)
+							//that().onVideoTrack?(streamId, track)
 						} else {
 							RTCLogEx(.info,"[PMX][Observer]Couldn't cast media track as video track")
 						}
@@ -324,7 +338,7 @@ final class RoomSessionManager: Sendable{
 					else if t.value.kind == kRTCMediaStreamTrackKindAudio {
 						if let track = t.value as? RTCAudioTrack{
 							RTCLogEx(.info,"[PMX][Observer]Got an unprocessed Audio Track")
-							that().onAudioTrack?(streamId,track)
+							//that().onAudioTrack?(streamId,track)
 						}else{
 							RTCLogEx(.info,"[PMX][Observer]Couldn't cast media track as audio track")
 						}
@@ -383,6 +397,7 @@ final class RoomSessionManager: Sendable{
 	}
 	
 	private init(
+		audioLevelAnalyzer: PMXAudioLevelAnalyzer,
 		onTrickle: @escaping @Sendable (Int64,String) throws -> Void,
 		getTurnCredentials: @escaping @Sendable () throws -> [privmx.endpoint.stream.TurnCredentials],
 		peerConnectionFactory: RTCPeerConnectionFactory,
@@ -390,6 +405,7 @@ final class RoomSessionManager: Sendable{
 		onAcceptOfferOnReconfigure: @escaping @Sendable (Int64,privmx.endpoint.stream.SdpWithTypeModel) throws -> Void,
 		onICEConnectionStateChanged: @escaping @Sendable (RTCPeerConnection,RTCIceConnectionState) -> Void = {_,_ in}
 	){
+		self.localAnalyzer = audioLevelAnalyzer
 		self.onTrickle = onTrickle
 		self.getTurnCredentials = getTurnCredentials
 		self.peerConnectionFactory = peerConnectionFactory

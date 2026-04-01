@@ -13,14 +13,15 @@ import Foundation
 import WebRTC
 import PrivMXEndpointSwiftNative
 
-public struct AudioTrackInfo{
+struct AudioTrackInfo{
 	public var track: RTCAudioTrack
 	public var sender: RTCRtpSender
 	public var frameCryptor: PMXFrameCryptorTransformer
 	public var frameCryptorDelegate: PMXFrameCryptorObserver?
+	public var audioLevelAnalyzer: PMXAudioLevelAnalyzer
 }
 
-public struct VideoTrackInfo{
+struct VideoTrackInfo{
 	public var track: RTCVideoTrack
 	public var sender: RTCRtpSender
 	public var frameCryptor: PMXFrameCryptorTransformer
