@@ -93,6 +93,7 @@ final class PMXPeerConnectionDelegate:NSObject,RTCPeerConnectionDelegate, @unche
 	
 	private var onIceCandidateErrorEvent:((RTCPeerConnection,RTCIceCandidateErrorEvent)->Void)?
 	private var onIceConnectionStateChanged:((RTCPeerConnection,RTCIceConnectionState)->Void)?
+	private var onIceConnectionStandardizedStateChanged:((RTCPeerConnection,RTCIceConnectionState)->Void)?
 	private var onIceGatheringStateChanged:((RTCPeerConnection,RTCIceGatheringState)->Void)?
 	private var onIceCandidateGenerated:((RTCPeerConnection,RTCIceCandidate)->Void)?
 	private var onIceCandidatesRemoved:((RTCPeerConnection,[RTCIceCandidate])->Void)?
@@ -357,7 +358,7 @@ final class PMXPeerConnectionDelegate:NSObject,RTCPeerConnectionDelegate, @unche
 		didChangeStandardizedIceConnectionState newState: RTCIceConnectionState
 	) {
 		RTCLogEx(.info, "[PMX][observer] PC standardised Ice connection state changed: \(newState) raw: \(newState.rawValue)")
-		//onIceConnectionStateChanged?(peerConnection,newState)
+		onIceConnectionStandardizedStateChanged?(peerConnection,newState)
 	}
 	
 	public func peerConnection(
