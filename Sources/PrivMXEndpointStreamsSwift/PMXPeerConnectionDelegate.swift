@@ -305,7 +305,6 @@ final class PMXPeerConnectionDelegate:NSObject,RTCPeerConnectionDelegate, @unche
 		didStartReceivingOn transceiver: RTCRtpTransceiver
 	) {
 		RTCLogEx(.info, "[PMX][observer] PC Started receiving on transciever")
-		print("info: started receiving")
 		let receiver = transceiver.receiver
 		let deleg = FrameCryptorDelegate(isremote: true)
 		let analyzer = PMXAudioLevelAnalyzer()
