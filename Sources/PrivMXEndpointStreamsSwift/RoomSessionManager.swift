@@ -83,11 +83,10 @@ final class RoomSessionManager: Sendable{
 		})
 		
 		publisher.peerConnectionDelegate.setShouldRenegotiateCallback({
-			pc in
-			nonisolated(unsafe) var peer = pc
+			peer in
 			if publisher.sessionId > -1{
 				RTCLogEx(.info, "[PMX][Renegotiate][Publisher] Received Should Renegotiate Callback")
-				Task{@Sendable in
+				Task{
 					do{
 						let offer = try peer.offer(for: RTCMediaConstraints(mandatoryConstraints:nil,optionalConstraints: nil)) {description,error in
 							if let description{
@@ -124,33 +123,6 @@ final class RoomSessionManager: Sendable{
 					}catch let err{
 						print("[PMX][reneg][error] \(err)")
 					}
-				}
-			}
-		})
-	}
-	
-	func setSubscriberRenegCallback(_ roomId: String){
-		guard let subscriber = roomSessions[roomId]?.subscriber
-		else {
-			return
-		}
-
-		subscriber.peerConnectionDelegate.setShouldRenegotiateCallback({
-			pc in
-			nonisolated(unsafe) var peer = pc
-			
-		})
-		
-		subscriber.peerConnectionDelegate.setIceCandidateGeneratedCallback({
-			peerConnection, candidate in
-			RTCLogEx(.info, "[PMX] will try trickling subscriber")
-			if !candidate.sdp.isEmpty, subscriber.sessionId > -1{
-				var iceCandidate = candidate.sdp
-				do{
-					RTCLogEx(.info, "[PMX] trickling subscriber")
-					try self.onTrickle(subscriber.sessionId,iceCandidate)
-				}catch{
-					RTCLogEx(.info,"Failed to trickle candidate \(error)")
 				}
 			}
 		})
@@ -474,15 +446,6 @@ final class RoomSessionManager: Sendable{
 			}
 		}
 	}
-	
-	//func addDataStreamTo(
-	//	streamHandle: privmx.endpoint.stream.StreamHandle
-	//) throws -> Void {
-	//	guard let roomId = roomIdsForHandles[streamHandle], var session = roomSessions[roomId]
-	//	else {
-	//		throw PESStreamsError.failedAddingDataStream(.init(name: "Missing Session", message: "", description: ""))
-	//	}
-	//}
 	
 	private func setCppCallbacksInSession(
 	_ session: inout RoomJanusSession
