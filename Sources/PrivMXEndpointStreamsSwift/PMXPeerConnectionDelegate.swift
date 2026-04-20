@@ -14,13 +14,31 @@ import WebRTC
 import PrivMXEndpointSwiftNative
 import Synchronization
 
+public class FrameCryptorDelegate:PMXFrameCryptorObserver{
+	nonisolated(unsafe) static var lastid = 0
+	let id:Int
+	public init(isremote: Bool) {
+		self.isremote = isremote
+		self.id = Self.lastid
+		Self.lastid += 1
+	}
+	
+	let isremote:Bool
+	public func onFrameCryptionStateChanged(_ state: PMXFrameCryptionState) {
+		RTCLogEx(.info,"[PMX]\(id) (remote? \(isremote)) frame cryption state changed to \(state)")
+	}
+	
+	public func onFrameRms(_ rmsValue: Int8) {
+		RTCLogEx(.info,"[PMX][RMS] \(id)(remote? \(isremote)) value \(rmsValue)")
+	}
+}
 
 final class PMXPeerConnectionDelegate:NSObject,RTCPeerConnectionDelegate, @unchecked Sendable{
 	var streamRoomId: String
 	var currentKeys : PMXKeyStore
 	weak var peerConnectionFactory : RTCPeerConnectionFactory!
 	
-	var cryptors = MutexGuarded<[String : (PMXFrameCryptorTransformer,PMXFrameCryptorObserver?)]>([:])
+	var cryptors = MutexGuarded<[String : (PMXFrameCryptorTransformer,PMXFrameCryptorObserver?, PMXAudioLevelAnalyzer)]>([:])
 	
 	var unprocessedTracks = [String:RTCMediaStreamTrack]()
 	var track2Stream: [String:String] = [:]
@@ -288,12 +306,15 @@ final class PMXPeerConnectionDelegate:NSObject,RTCPeerConnectionDelegate, @unche
 	) {
 		RTCLogEx(.info, "[PMX][observer] PC Started receiving on transciever")
 		let receiver = transceiver.receiver
+		let deleg = FrameCryptorDelegate(isremote: true)
+		let analyzer = PMXAudioLevelAnalyzer()
+		analyzer.enable(true)
 		if let track = receiver.track, var peerConnectionFactory {
-			var pfct = PMXFrameCryptorTransformer(for: receiver, with: peerConnectionFactory, pmxKeyStore: currentKeys)
+			var pfct = PMXFrameCryptorTransformer(for: receiver, with: peerConnectionFactory, pmxKeyStore: currentKeys, audioLevelAnalyzer: analyzer)
+			pfct?.register(deleg)
 			if pfct != nil{
-			//pfct!.register(deleg)
 			pfct!.setDropFramesIfCryptionFailed(true)
-				cryptors.value[track.trackId] = (pfct!,nil)
+				cryptors.value[track.trackId] = (pfct!,deleg,analyzer)
 			}
 			unprocessedTracks[track.trackId] = track
 		}
