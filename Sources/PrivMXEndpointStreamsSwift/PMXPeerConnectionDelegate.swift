@@ -64,7 +64,6 @@ final class PMXPeerConnectionDelegate:NSObject,RTCPeerConnectionDelegate, @unche
 		onLocalCandidateChanged: ((RTCPeerConnection, RTCIceCandidate, RTCIceCandidate, Int32, String) -> Void)? = nil
 	) {
 		self.peerConnectionFactory = peerConnectionFactory
-		
 		self.streamRoomId = streamRoomId
 		self.currentKeys = currentKeys
 		self.onConnectionSignalingStateChanged = onConnectionSignalingStateChanged
@@ -94,6 +93,7 @@ final class PMXPeerConnectionDelegate:NSObject,RTCPeerConnectionDelegate, @unche
 	
 	private var onIceCandidateErrorEvent:((RTCPeerConnection,RTCIceCandidateErrorEvent)->Void)?
 	private var onIceConnectionStateChanged:((RTCPeerConnection,RTCIceConnectionState)->Void)?
+	private var onIceConnectionStandardizedStateChanged:((RTCPeerConnection,RTCIceConnectionState)->Void)?
 	private var onIceGatheringStateChanged:((RTCPeerConnection,RTCIceGatheringState)->Void)?
 	private var onIceCandidateGenerated:((RTCPeerConnection,RTCIceCandidate)->Void)?
 	private var onIceCandidatesRemoved:((RTCPeerConnection,[RTCIceCandidate])->Void)?
@@ -256,7 +256,7 @@ final class PMXPeerConnectionDelegate:NSObject,RTCPeerConnectionDelegate, @unche
 	public func peerConnectionShouldNegotiate(
 		_ peerConnection: RTCPeerConnection
 	) {
-		RTCLogEx(.info, "[PMX][observer] PC should renegotiate")
+		RTCLogEx(.info, "[PMX][observer][reneg] PC should renegotiate")
 		onShouldRenegotiate?(peerConnection)
 	}
 	
@@ -358,7 +358,7 @@ final class PMXPeerConnectionDelegate:NSObject,RTCPeerConnectionDelegate, @unche
 		didChangeStandardizedIceConnectionState newState: RTCIceConnectionState
 	) {
 		RTCLogEx(.info, "[PMX][observer] PC standardised Ice connection state changed: \(newState) raw: \(newState.rawValue)")
-		onIceConnectionStateChanged?(peerConnection,newState)
+		onIceConnectionStandardizedStateChanged?(peerConnection,newState)
 	}
 	
 	public func peerConnection(

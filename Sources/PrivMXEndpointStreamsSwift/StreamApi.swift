@@ -34,7 +34,7 @@ public class StreamApi: @unchecked Sendable{
 		eventApi: inout EventApi,
 	) throws -> StreamApi{
 		
-		let low = privmx.NativeStreamApiLowWrapper.create(connection.api, &eventApi.api)
+		let low = privmx.NativeStreamApiLowWrapper.create(connection.cxxApi, &eventApi.cxxApi)
 		guard var api = low.result.value
 		else{
 			var err = privmx.InternalError()
@@ -108,7 +108,7 @@ public class StreamApi: @unchecked Sendable{
 		if let policies{
 			op = privmx.makeOptional(policies)
 		}
-		let res = api.createStreamRoom(
+		let res = cxxApi.createStreamRoom(
 			std.string(contextId),
 			uv,
 			mv,
@@ -173,7 +173,7 @@ public class StreamApi: @unchecked Sendable{
 			op = privmx.makeOptional(policies)
 		}
 		
-		let res = api.updateStreamRoom(
+		let res = cxxApi.updateStreamRoom(
 			std.string(streamRoomId),
 			uv,
 			mv,
@@ -200,7 +200,7 @@ public class StreamApi: @unchecked Sendable{
 		from contextId: String,
 		basedOn query: privmx.endpoint.core.PagingQuery
 	) throws -> privmx.StreamRoomList {
-		let res = api.listStreamRooms(
+		let res = cxxApi.listStreamRooms(
 			std.string(contextId),
 			query)
 		guard res.error.value == nil else {
@@ -225,7 +225,7 @@ public class StreamApi: @unchecked Sendable{
 	public func getStreamRoom(
 		_ streamRoomId: String
 	) throws -> privmx.endpoint.stream.StreamRoom {
-		let res = api.getStreamRoom(std.string(streamRoomId))
+		let res = cxxApi.getStreamRoom(std.string(streamRoomId))
 		if let err = res.error.value {
 			throw PESStreamsError.failedGettingStreamRoom(err)
 		}
@@ -246,7 +246,7 @@ public class StreamApi: @unchecked Sendable{
 	public func deleteStreamRoom(
 		_ streamRoomId: String
 	) throws -> Void {
-		let res = api.deleteStreamRoom(std.string(streamRoomId))
+		let res = cxxApi.deleteStreamRoom(std.string(streamRoomId))
 		if let err = res.error.value{
 			throw PESStreamsError.failedDeletingStreamRoom(err)
 		}
@@ -275,7 +275,7 @@ public class StreamApi: @unchecked Sendable{
 					message: "",
 					description: ""))
 		}
-		let res = api.joinStreamRoom(
+		let res = cxxApi.joinStreamRoom(
 			std.string(streamRoomId),
 			instance.instance
 		)
@@ -299,7 +299,7 @@ public class StreamApi: @unchecked Sendable{
 			roomSessionManager.roomIdsForHandles[handle.key] = nil
 		}
 		
-		let res = api.leaveStreamRoom(std.string(roomId))
+		let res = cxxApi.leaveStreamRoom(std.string(roomId))
 		
 		if let err = res.error.value{
 			throw PESStreamsError.failedLeavingStreamRoom(err)
@@ -330,11 +330,12 @@ public class StreamApi: @unchecked Sendable{
 		else {
 			throw PESStreamsError.failedCreatingStream(.init(name: "Missing session", message: "", description: "There is no session for this Room."))
 		}
+		roomSessionManager.setPublisherRenegCallbacks(streamRoomId)
 		publisher.setconnectionStateChangedCallbacks(
 			onIceConnectionStateChangedCallback: onIceConnectionStateChangedCallback,
 			onPeerConnectionStateChangedCallback: onPeerConnectionStateChangedCallback
 		)
-		let res = api.createStream(std.string(streamRoomId))
+		let res = cxxApi.createStream(std.string(streamRoomId))
 		guard res.error.value == nil else {
 			throw PESStreamsError.failedCreatingStream(res.error.value!)
 		}
@@ -361,7 +362,7 @@ public class StreamApi: @unchecked Sendable{
 		if let roomId = roomSessionManager.roomIdsForHandles[handle]{
 			roomSessionManager.updateTurnCredentialsFor(roomId)
 		}
-		let res = api.updateStream(handle)
+		let res = cxxApi.updateStream(handle)
 		if let err = res.error.value {
 			throw PESStreamsError.failedUpdatingStream(err)
 		}
@@ -408,7 +409,7 @@ public class StreamApi: @unchecked Sendable{
 			throw PESStreamsError.failedPublishingStream(.init(name: "Missing publisher", message: "", description: "The Publisher for this room doe not exist."))
 		}
 		
-		let res = api.publishStream(streamHandle)
+		let res = cxxApi.publishStream(streamHandle)
 		
 		if let err = res.error.value {
 			throw PESStreamsError.failedPublishingStream(err)
@@ -431,7 +432,7 @@ public class StreamApi: @unchecked Sendable{
 	public func listStreams(
 		in streamRoomId: String
 	) throws -> [privmx.endpoint.stream.StreamInfo] {
-		let res = api.listStreams(std.string(streamRoomId))
+		let res = cxxApi.listStreams(std.string(streamRoomId))
 		guard res.error.value == nil else {
 			throw PESStreamsError.failedListingStreams(res.error.value!)
 		}
@@ -455,7 +456,7 @@ public class StreamApi: @unchecked Sendable{
 		if let roomId = roomSessionManager.roomIdsForHandles[streamHandle]{
 			roomSessionManager.updateTurnCredentialsFor(roomId)
 		}
-		let res = api.unpublishStream(streamHandle)
+		let res = cxxApi.unpublishStream(streamHandle)
 		guard res.error.value == nil else {
 			throw PESStreamsError.failedUnpublishingStream(res.error.value!)
 		}
@@ -501,7 +502,7 @@ public class StreamApi: @unchecked Sendable{
 			for i in subscriptions{
 				siv.push_back(i)
 			}
-			let res = api.subscribeToRemoteStreams(std.string(streamRoomId),
+			let res = cxxApi.subscribeToRemoteStreams(std.string(streamRoomId),
 												   siv)
 			if let err = res.error.value{
 				throw PESStreamsError.failedSubscribingToRemoteStreams(err)
@@ -535,7 +536,7 @@ public class StreamApi: @unchecked Sendable{
 			asiv.push_back(i)
 		}
 		
-		let res = api.modifyRemoteStreamsSubscriptions(
+		let res = cxxApi.modifyRemoteStreamsSubscriptions(
 			std.string(streamRoomId),
 			asiv,
 			rsiv)
@@ -560,7 +561,7 @@ public class StreamApi: @unchecked Sendable{
 		for i in subscriptionsToRemove{
 			siv.push_back(i)
 		}
-		let res = api.unsubscribeFromRemoteStreams(std.string(streamRoomId), siv)
+		let res = cxxApi.unsubscribeFromRemoteStreams(std.string(streamRoomId), siv)
 		if let err =  res.error.value{
 			throw PESStreamsError.failedUnsubscribingFromRemoteStreams(res.error.value!)
 		}
@@ -699,7 +700,7 @@ public class StreamApi: @unchecked Sendable{
 	public func subscribeFor(
 		_ subscriptionQueries: privmx.SubscriptionQueryVector
 	) throws -> privmx.SubscriptionIdVector {
-		let res = api.subscribeFor(subscriptionQueries)
+		let res = cxxApi.subscribeFor(subscriptionQueries)
 		guard res.error.value == nil else {
 			throw PrivMXEndpointError.failedSubscribingForEvents(res.error.value!)
 		}
@@ -720,7 +721,7 @@ public class StreamApi: @unchecked Sendable{
 	public func unsubscribeFrom(
 		_ subscriptionIds: privmx.SubscriptionIdVector
 	) throws -> Void {
-		let res = api.unsubscribeFrom(subscriptionIds)
+		let res = cxxApi.unsubscribeFrom(subscriptionIds)
 		guard res.error.value == nil else {
 			throw PrivMXEndpointError.failedUnsubscribingFromEvents(res.error.value!)
 		}
@@ -740,7 +741,7 @@ public class StreamApi: @unchecked Sendable{
 		selectorType: privmx.endpoint.stream.EventSelectorType,
 		selectorId: String
 	) throws -> privmx.SubscriptionQuery {
-		let res = api.buildSubscriptionQuery(eventType, selectorType, std.string(selectorId))
+		let res = cxxApi.buildSubscriptionQuery(eventType, selectorType, std.string(selectorId))
 		guard res.error.value == nil else {
 			throw PrivMXEndpointError.failedBuildingSubscriptionQuery(res.error.value!)
 		}
@@ -788,22 +789,22 @@ public class StreamApi: @unchecked Sendable{
 	}
 	
 	
+	public var cxxApi: privmx.NativeStreamApiLowWrapper
 	//MARK: - PRIVATE
-	private var api: privmx.NativeStreamApiLowWrapper
 	private init(
 		api: privmx.NativeStreamApiLowWrapper,
 	) {
-		self.api = api
+		self.cxxApi = api
 	}
 	
 	private func bindRoomSessionManger(
 	) throws -> Void {
 		self.roomSessionManager = RoomSessionManager.create(
 			onTrickle: { sessionId, candidate in
-				self.api.trickle(sessionId, std.string(candidate))
+				self.cxxApi.trickle(sessionId, std.string(candidate))
 			},
 			getTurnCredentials: {
-				let res = self.api.getTurnCredentials()
+				let res = self.cxxApi.getTurnCredentials()
 				if let err = res.error.value{
 					throw PESStreamsError.failedGettingTurnCredentials(err)
 				}
@@ -822,7 +823,7 @@ public class StreamApi: @unchecked Sendable{
 			},
 			setNewOfferOnReconfigure: {
 				sessionId, sdp in
-				let res = self.api.setNewOfferOnReconfigure(sessionId, sdp)
+				let res = self.cxxApi.setNewOfferOnReconfigure(sessionId, sdp)
 				if let err = res.error.value{
 					throw PESStreamsError.failedSettingNewOfferOnReconfigure(err)
 				}
@@ -830,7 +831,7 @@ public class StreamApi: @unchecked Sendable{
 			},
 			acceptOfferOnReconfigure: {
 				sessionId, sdp in
-				let res = self.api.acceptOfferOnReconfigure(sessionId, sdp)
+				let res = self.cxxApi.acceptOfferOnReconfigure(sessionId, sdp)
 				if let err = res.error.value{
 					throw PESStreamsError.failedAcceptingOfferOnReconfigure(err)
 				}

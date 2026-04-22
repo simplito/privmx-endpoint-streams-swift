@@ -29,7 +29,6 @@ final class RoomSessionManager: Sendable{
 	
 	private let setNewOfferOnReconfigure: @Sendable (Int64,privmx.endpoint.stream.SdpWithTypeModel) throws -> Void
 	private let acceptOfferOnReconfigure: @Sendable (Int64,privmx.endpoint.stream.SdpWithTypeModel) throws -> Void
-	private let onICEConnectionStateChanged: (@Sendable (RTCPeerConnection,RTCIceConnectionState) -> Void)?
 	static func create(
 		onTrickle: @escaping @Sendable (Int64,String) throws -> Void,
 		getTurnCredentials: @escaping @Sendable () throws -> [privmx.endpoint.stream.TurnCredentials],
@@ -60,6 +59,75 @@ final class RoomSessionManager: Sendable{
 		return mgr
 	}
 	
+	func setPublisherRenegCallbacks(_ roomId: String){
+		guard let publisher = roomSessions[roomId]?.publisher
+		else {
+			return
+		}
+		
+		publisher.peerConnectionDelegate.setIceCandidateGeneratedCallback({
+			peerConnection, candidate in
+			
+			RTCLogEx(.info, "[PMX] will try trickling publisher")
+			if !candidate.sdp.isEmpty, publisher.sessionId > -1{
+				var iceCandidate = candidate.sdp
+				Task{
+					do{
+						RTCLogEx(.info, "[PMX] trickling publisher")
+						try self.onTrickle(publisher.sessionId,iceCandidate)
+					}catch{
+						RTCLogEx(.info,"Failed to trickle candidate \(error)")
+					}
+				}
+			}
+		})
+		
+		publisher.peerConnectionDelegate.setShouldRenegotiateCallback({
+			peer in
+			if publisher.sessionId > -1{
+				RTCLogEx(.info, "[PMX][Renegotiate][Publisher] Received Should Renegotiate Callback")
+				Task{
+					do{
+						let offer = try peer.offer(for: RTCMediaConstraints(mandatoryConstraints:nil,optionalConstraints: nil)) {description,error in
+							if let description{
+								RTCLogEx(.info, "[PMX][Renegotiate][publisher] Has publisher and description")
+								let tp = switch description.type {
+									case .answer:
+										"answer"
+									case .prAnswer:
+										"prAnswer"
+									case .offer:
+										"offer"
+									case .rollback:
+										"rollback"
+									@unknown default:
+										"UNKNOWN"
+								}
+								Task{@Sendable in
+									let sid = publisher.sessionId
+									do{
+										RTCLogEx(.info, "[pmx][reneg] publisher will set new offer")
+										try self.setNewOfferOnReconfigure(sid,.init(sdp: std.string(description.sdp), type: std.string(tp)))
+									}catch let err{
+										RTCLogEx(.error, "[pmx][reneg][error] \(err)")
+									}
+									try await peer.setLocalDescription(description)
+									//if let swr = await try? publisher.reconfigure(sdp: description.sdp, type: String(tp), roomId: roomId){
+									//	let swt = privmx.endpoint.stream.SdpWithTypeModel(sdp: swr.sdp, type: swr.type )
+									// else {
+									//	RTCLogEx(.error, "[PMX][reneg] Failed reconfigure")
+									//}
+								}
+							}
+						}
+					}catch let err{
+						print("[PMX][reneg][error] \(err)")
+					}
+				}
+			}
+		})
+	}
+	
 	@discardableResult
 	func addRoomSessionFor(
 		_ roomId: String
@@ -81,62 +149,6 @@ final class RoomSessionManager: Sendable{
 			}
 		)
 		setCppCallbacksInSession(&rjs)
-		
-		rjs.publisher?.peerConnectionDelegate.setIceConnectionStateChangedCallback(onICEConnectionStateChanged)
-		rjs.publisher?.peerConnectionDelegate.setIceCandidateGeneratedCallback({
-			peerConnection, candidate in
-			RTCLogEx(.info, "[PMX] will try trickling publisher")
-			if !candidate.sdp.isEmpty, let sessionId = rjs.publisher?.sessionId, sessionId > -1{
-				var iceCandidate = candidate.sdp
-				do{
-					RTCLogEx(.info, "[PMX] trickling publisher")
-					try self.onTrickle(sessionId,iceCandidate)
-				}catch{
-					RTCLogEx(.info,"Failed to trickle candidate \(error)")
-				}
-			}
-		})
-		rjs.subscriber?.peerConnectionDelegate.setIceCandidateGeneratedCallback({
-			peerConnection, candidate in
-			RTCLogEx(.info, "[PMX] will try trickling subscriber")
-			if !candidate.sdp.isEmpty, let sessionId = rjs.subscriber?.sessionId, sessionId > -1{
-				var iceCandidate = candidate.sdp
-				do{
-					RTCLogEx(.info, "[PMX] trickling subscriber")
-					try self.onTrickle(sessionId,iceCandidate)
-				}catch{
-					RTCLogEx(.info,"Failed to trickle candidate \(error)")
-				}
-			}
-		})
-		rjs.publisher?.peerConnectionDelegate.setShouldRenegotiateCallback({
-			pc in
-			RTCLogEx(.info, "[PMX][Renegotiate] Received Should Renegotiate Callback")
-			let offer = try? pc.offer(for: RTCMediaConstraints(mandatoryConstraints:nil,optionalConstraints: nil)) {description,error in
-				if let pub = rjs.publisher, let description{
-					RTCLogEx(.info, "[PMX][Renegotiate] Has publisher and description")
-					let tp = switch description.type {
-						case .answer:
-							"answer"
-						case .prAnswer:
-							"prAnswer"
-						case .offer:
-							"offer"
-						case .rollback:
-							"rollback"
-						@unknown default:
-							"UNKNOWN"
-					}
-					Task{@Sendable in
-						let sid = pub.sessionId
-						if let swr = await try? pub.reconfigure(sdp: description.sdp, type: String(tp), roomId: rjs.roomId){
-							let swt = privmx.endpoint.stream.SdpWithTypeModel(sdp: swr.sdp, type: swr.type )
-							try? self.setNewOfferOnReconfigure(sid,swt)
-						}
-					}
-				}
-			}
-		})
 		
 		roomSessions[roomId] = rjs
 		return rjs
@@ -403,7 +415,6 @@ final class RoomSessionManager: Sendable{
 		peerConnectionFactory: RTCPeerConnectionFactory,
 		onSetNewOfferOnReconfigure: @escaping @Sendable (Int64,privmx.endpoint.stream.SdpWithTypeModel) throws -> Void,
 		onAcceptOfferOnReconfigure: @escaping @Sendable (Int64,privmx.endpoint.stream.SdpWithTypeModel) throws -> Void,
-		onICEConnectionStateChanged: @escaping @Sendable (RTCPeerConnection,RTCIceConnectionState) -> Void = {_,_ in}
 	){
 		self.localAnalyzer = audioLevelAnalyzer
 		self.onTrickle = onTrickle
@@ -411,7 +422,6 @@ final class RoomSessionManager: Sendable{
 		self.peerConnectionFactory = peerConnectionFactory
 		self.setNewOfferOnReconfigure = onSetNewOfferOnReconfigure
 		self.acceptOfferOnReconfigure = onAcceptOfferOnReconfigure
-		self.onICEConnectionStateChanged = onICEConnectionStateChanged
 	}
 	
 	func updateTurnCredentialsFor(
@@ -607,13 +617,8 @@ final class RoomSessionManager: Sendable{
 					let srid = String(streamRoomId)
 					RTCLogEx(.info,"[PMX][swift][dbg][close] got values")
 					do{
-						try this.publisher?
-							.peerConnection.close()
-						RTCLogEx(.info,"[PMX][swift][dbg][close] closed publisher")
-						try this.subscriber?
-							.peerConnection.close()
-						RTCLogEx(.info,"[PMX][swift][dbg][close] closed subscriber")
-						
+						this.publisher?.close()
+						this.subscriber?.close()
 					}catch let err{
 						res = privmx.InternalError(
 							name: "Error Closing Session",
@@ -629,6 +634,9 @@ final class RoomSessionManager: Sendable{
 			},
 			Unmanaged.passRetained(session).toOpaque())
 
+	}
+	func removeSession(_ roomId: String){
+		self.roomSessions[roomId] = nil
 	}
 	
 }
