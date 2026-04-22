@@ -83,7 +83,8 @@ final class RoomSessionManager: Sendable{
 		})
 		
 		publisher.peerConnectionDelegate.setShouldRenegotiateCallback({
-			peer in
+			pc in
+			nonisolated(unsafe) let peer = pc
 			if publisher.sessionId > -1{
 				RTCLogEx(.info, "[PMX][Renegotiate][Publisher] Received Should Renegotiate Callback")
 				Task{
@@ -112,11 +113,6 @@ final class RoomSessionManager: Sendable{
 										RTCLogEx(.error, "[pmx][reneg][error] \(err)")
 									}
 									try await peer.setLocalDescription(description)
-									//if let swr = await try? publisher.reconfigure(sdp: description.sdp, type: String(tp), roomId: roomId){
-									//	let swt = privmx.endpoint.stream.SdpWithTypeModel(sdp: swr.sdp, type: swr.type )
-									// else {
-									//	RTCLogEx(.error, "[PMX][reneg] Failed reconfigure")
-									//}
 								}
 							}
 						}
