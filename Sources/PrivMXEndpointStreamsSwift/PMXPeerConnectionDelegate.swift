@@ -318,7 +318,7 @@ final class PMXPeerConnectionDelegate:NSObject,RTCPeerConnectionDelegate, @unche
 				if let audioTrack = track as? RTCAudioTrack{
 					onAudioTrack?(stream.streamId,audioTrack)
 				}
-				if let videoTrack = track as? RTCVideoTrack{
+				else if let videoTrack = track as? RTCVideoTrack{
 					onVideoTrack?(stream.streamId,videoTrack)
 				}
 			}
