@@ -40,8 +40,6 @@ final class PMXPeerConnectionDelegate:NSObject,RTCPeerConnectionDelegate, @unche
 	
 	var cryptors = MutexGuarded<[String : (PMXFrameCryptorTransformer,PMXFrameCryptorObserver?, PMXAudioLevelAnalyzer)]>([:])
 	
-	var unprocessedTracks = [String:RTCMediaStreamTrack]()
-	var track2Stream: [String:String] = [:]
 	public init(
 		streamRoomId: String,
 		peerConnectionFactory: RTCPeerConnectionFactory,
@@ -136,6 +134,7 @@ final class PMXPeerConnectionDelegate:NSObject,RTCPeerConnectionDelegate, @unche
 	){
 		onConnectionPeerStateChanged = cb
 	}
+	
 	public func setStreamAddedCallback(
 		_ cb :(@Sendable (RTCPeerConnection,RTCMediaStream)->Void)?
 	){
@@ -232,17 +231,7 @@ final class PMXPeerConnectionDelegate:NSObject,RTCPeerConnectionDelegate, @unche
 		didAdd stream: RTCMediaStream
 	) -> Void {
 		RTCLogEx(.info, "[PMX][observer] PC StreamAdded with \(stream.videoTracks.count) video and \(stream.audioTracks.count) audio tracks")
-		
 		onStreamAdded?(peerConnection,stream)
-		let streamId = stream.streamId
-		for vtr in stream.videoTracks {
-			self.track2Stream[vtr.trackId] = streamId
-			onVideoTrack?(streamId,vtr)
-		}
-		for vtr in stream.audioTracks {
-			self.track2Stream[vtr.trackId] = streamId
-			onAudioTrack?(streamId,vtr)
-		}
 	}
 	
 	public func peerConnection(
@@ -305,19 +294,6 @@ final class PMXPeerConnectionDelegate:NSObject,RTCPeerConnectionDelegate, @unche
 		didStartReceivingOn transceiver: RTCRtpTransceiver
 	) {
 		RTCLogEx(.info, "[PMX][observer] PC Started receiving on transciever")
-		let receiver = transceiver.receiver
-		let deleg = FrameCryptorDelegate(isremote: true)
-		let analyzer = PMXAudioLevelAnalyzer()
-		analyzer.enable(true)
-		if let track = receiver.track, var peerConnectionFactory {
-			var pfct = PMXFrameCryptorTransformer(for: receiver, with: peerConnectionFactory, pmxKeyStore: currentKeys, audioLevelAnalyzer: analyzer)
-			pfct?.register(deleg)
-			if pfct != nil{
-			pfct!.setDropFramesIfCryptionFailed(true)
-				cryptors.value[track.trackId] = (pfct!,deleg,analyzer)
-			}
-			unprocessedTracks[track.trackId] = track
-		}
 	}
 	
 	public func peerConnection(
@@ -326,7 +302,29 @@ final class PMXPeerConnectionDelegate:NSObject,RTCPeerConnectionDelegate, @unche
 		streams mediaStreams: [RTCMediaStream]
 	) {
 		RTCLogEx(.info, "[PMX][observer] PC  receiver added streams")
-		onTracksAdded?(peerConnection,rtpReceiver,mediaStreams)
+		
+		let deleg = FrameCryptorDelegate(isremote: true)
+		let analyzer = PMXAudioLevelAnalyzer()
+		
+		if let stream = mediaStreams.first {
+			analyzer.enable(true)
+			if let track = rtpReceiver.track, var peerConnectionFactory {
+				var pfct = PMXFrameCryptorTransformer(for: rtpReceiver, with: peerConnectionFactory, pmxKeyStore: currentKeys, audioLevelAnalyzer: analyzer)
+				pfct?.register(deleg)
+				if pfct != nil{
+					pfct!.setDropFramesIfCryptionFailed(true)
+					cryptors.value[track.trackId] = (pfct!,deleg,analyzer)
+				}
+				if let audioTrack = track as? RTCAudioTrack{
+					onAudioTrack?(stream.streamId,audioTrack)
+				}
+				else if let videoTrack = track as? RTCVideoTrack{
+					onVideoTrack?(stream.streamId,videoTrack)
+				}
+			}
+		} else {
+			RTCLogEx(.error, "No Stream to assignt to track")
+		}
 	}
 	
 	public func peerConnection(
